@@ -1,0 +1,168 @@
+import asyncio
+import websockets
+import json
+import time
+import math
+from abc import ABC, abstractmethod  # Abstract Base Class
+from dataclasses import dataclass
+from typing import Optional
+from models import Registro
+import reserve_price as rp
+
+#importar métodos de almacenamientos
+#Aseguro monotonizidad
+class DataGuard:
+    def __init__(self):
+        self._last_state: Optional[Registro] = None
+        self._dropped_duplicates = 0
+        self._dropped_out_of_order = 0
+
+    def monotonicity_duplicates(self, new_tick: Registro) -> bool:
+        """
+        Valido si el tick es nuevo y relevante.
+        Retorna True si debes procesarlo, False si debes ignorarlo.
+        Esperamos el dict crudo del socket de Binance bookTicker.
+        """
+        # CASO 1: Primer tick del sistema (Arranque)
+        if self._last_state is None:
+            self._last_state = new_tick
+            return True
+
+        # CASO 2: Validación de Monotonicidad (Tiempo)
+        # Si el tick nuevo es más viejo o igual que el último procesado...
+        if new_tick.time < self._last_state.time:
+            self._dropped_out_of_order += 1
+            # Log ligero (no imprimir siempre para no saturar consola)
+            return False
+
+        # CASO 3: Validación de Duplicados (Contenido)
+        # Comparamos la tupla completa. Si precio Y volumen son idénticos...
+        if (new_tick.bid_price == self._last_state.bid_price and
+            new_tick.ask_price == self._last_state.ask_price and
+            new_tick.bid_quantity == self._last_state.bid_quantity and
+            new_tick.ask_quantity == self._last_state.ask_quantity):
+            
+            # Nota: Si solo cambia el timestamp pero los datos son iguales, es ruido.
+            self._dropped_duplicates += 1
+            # Actualizamos timestamp para mantener la monotonicidad, pero retornamos False
+            # para no recalcular estrategias costosas.
+            self._last_state.time = new_tick.time 
+            return False
+
+        # SI PASA TODOS LOS FILTROS:
+        self._last_state = new_tick
+        return True
+
+    def get_stats(self):
+        return {
+            "duplicates_dropped": self._dropped_duplicates,
+            "out_of_order_dropped": self._dropped_out_of_order
+        }
+
+
+#Interfaz con la que soportaré diferentes exchanges
+class ExchangeDrivers(ABC):
+
+    def __init__(self, queue: asyncio.Queue):
+        self.queue = queue
+        #variables backoff
+        self.initial_backoff = 1
+        self.max_backoff = 60
+        self.backoff_factor = 2
+
+    async def backoff(self, symbol: str):
+        current_delay = self.initial_backoff
+        while True:
+            try:
+                start_time = time.time()
+                print(f"🔄 Intentando conectar a {symbol}...")
+                await self.subscribe(symbol)
+
+            except (websockets.ConnectionClosed, OSError, asyncio.TimeoutError) as e:
+                print(f"⚠️ Conexión perdida ({e}).")
+            
+            except Exception as e:
+                print(f"❌ Error crítico inesperado: {e}")
+            
+            connection_duration = time.time() - start_time
+            if connection_duration > 60:
+                current_delay = self.initial_backoff
+
+            print(f"⏳ Reintentando en {current_delay} segundos...")
+            await asyncio.sleep(current_delay)
+            current_delay = min(current_delay * self.backoff_factor, self.max_backoff)
+        
+
+    @abstractmethod
+    async def subscribe(self, symbol: str):
+        """Método para conectarse al socket"""
+        pass
+
+    @abstractmethod
+    async def normlize_message(self, raw_msg: str) -> Optional[Registro]:
+        """Método obligatorio para traducir el JSON del exchange al formato común"""
+        pass
+
+#Adaptadores, en nuestro caso Binance
+class BinanceDriver(ExchangeDrivers):
+    async def subscribe(self, symbol: str):
+        #con depth me traigo el libro de precios, usamos bookTicker para traer el precio de la orden
+        uri = f"wss://stream.binance.com:9443/ws/{symbol.lower()}@bookTicker"
+        print(f"Concenctando a Binance para {symbol} vía {uri}")
+
+        #Guardo el estado
+        guard = DataGuard()
+
+        async with websockets.connect(uri) as websocket:
+            async for msg in websocket:
+                normalized = self.normlize_message(msg, symbol)
+                if normalized and guard.monotonicity_duplicates(normalized):
+                    await self.queue.put(normalized)
+            raise websockets.ConnectionClosed(None, None)        
+        
+
+    def normlize_message(self, raw_msg: str, symbol: str) -> Optional[Registro]:
+        try:
+            data = json.loads(raw_msg)
+            bid_price = float(data["b"])
+            bid_quantity = float(data["B"])
+            ask_price = float(data["a"])
+            ask_quantity = float(data["A"])
+            return Registro(
+                exchange="Binance",
+                symbol=symbol,
+                time=time.time(),
+                bid_price=bid_price,
+                bid_quantity=bid_quantity,
+                ask_price=ask_price,
+                ask_quantity=ask_quantity,
+            )
+        except Exception as e:
+            print(f"Error al normalizar el mensaje: {e}")
+            return None
+
+
+
+async def main():
+    #creo la tubería de datos
+    cola = asyncio.Queue()
+    exchange_name = "binance"
+    
+    if exchange_name == "binance":
+        #Asigno el driver y el simbolo
+        driver = BinanceDriver(cola)
+        symbol = "btcusdt"
+    else:
+        raise ValueError("Exchange no soportado")
+
+    await asyncio.gather(
+        driver.subscribe(symbol),
+        #la conecto con el consumidor de precios
+        rp.reserve_price(cola)
+    )
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Fin.")    

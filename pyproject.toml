@@ -1,0 +1,17 @@
+[project]
+name = "proyecto"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "asyncio>=4.0.0",
+    "fastparquet>=2024.11.0",
+    "numpy>=2.3.5",
+    "pandas>=2.3.3",
+    "psycopg2-binary>=2.9.11",
+    "pyarrow>=22.0.0",
+    "pymongo>=4.15.5",
+    "sqlalchemy>=2.0.45",
+    "websockets>=15.0.1",
+]
