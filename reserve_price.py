@@ -4,20 +4,22 @@ from dataclasses import dataclass
 from typing import Optional
 from models import Registro
 
-
+#Clase que calcula el reservation price para cada symbol
 class ReservePrice:
-    def __init__(self, gamma = 0.5, lambda_ = 0.94,  ):
+    def __init__(self, symbol:str, gamma = 0.5, lambda_ = 0.94,  ):
+        self.symbol = symbol
         self.gamma = gamma
         self.lambda_ = lambda_
 
-        # Estado de la Volatilidad
+        # Estado de la Volatilidad para el symbol
         self.variance = 0.0      # Varianza acumulada
         self.volatility = 0.0    # Sigma (Raíz de varianza)
         self.last_mid_price = None
         self.last_vol_update = 0 # Para controlar actualización cada 1s
         
         # Estado del Inventario (Simulado o real)
-        self.inventory_q = 0.0   # q (Positivo=Largo, Negativo=Corto)
+        self.inventory_q = 0.0
+        self.last_printed_price = None   # q (Positivo=Largo, Negativo=Corto)
 
     def _calc_micro_price(self, tick: Registro) -> float:
         numerador = (tick.bid_quantity * tick.bid_price + tick.ask_quantity * tick.ask_price)
@@ -39,7 +41,7 @@ class ReservePrice:
             return
 
         if timestamp - self.last_vol_update >= 1.0:
-            print(f"Actualizando volatilidad")
+            #print(f"Actualizando volatilidad")
             # Retorno logarítmico
             log_ret = math.log(current_mid / self.last_mid_price)
             
@@ -89,40 +91,43 @@ class ReservePrice:
         final_bid = reservation_price - half_spread
         
         return {
-            "r": reservation_price,
-            "bid": final_bid,
-            "ask": final_ask,
-            "obi": obi,
-            "vol": self.volatility
+            "symbol": self.symbol,
+            "reservation_price": reservation_price,
+            "vol": self.volatility            
         }
             
-
-        
+#Gestionar las múltiples instancias        
 async def reserve_price(queue: asyncio.Queue):
-    print("🚀 Iniciando Motor de Precios...")
-    pricer = ReservePrice()
+    print("🚀 Iniciando Motor de Precios Multi-Activo...")
     
-    # Cabecera
-    print(f"{'Precio de Reserva':<6} | {'BID':<10} | {'ASK':<10} | {'VOL':<10}")
-    print("-" * 25)
-
-    last_r = None
+    # DICCIONARIO DE ESTADO: Mapea "BTCUSDT" -> Objeto Calculadora BTC
+    strategies: Dict[str, ReservePriceCalculator] = {}
+    
+    print(f"{'SYM':<8} | {'Reserva':<10} | {'Volatilidad':<10}")
+    print("-" * 35)
 
     while True:
         tick: Registro = await queue.get()
         
-        resultado = pricer._calc_reservation_price(tick)
+        if tick.symbol is None:
+            print("❌ Error: Recibido tick sin símbolo.")
+            continue
+
+        # Pattern: Lazy Initialization
+        # Si es la primera vez que vemos esta moneda, creamos su cerebro
+        if tick.symbol not in strategies:
+            print(f"✨ Inicializando estrategia para {tick.symbol}")
+            strategies[tick.symbol] = ReservePrice(tick.symbol)
         
-        if resultado:
-             current_r = resultado['r']
-             # Redondeamos a 2 decimales para la comparación (lo que se ve en pantalla)
-             current_r_rounded = round(current_r, 2)
-             
-             # Solo imprimimos/guardamos si el precio reserva (visible) ha cambiado
-             if last_r is None or current_r_rounded != last_r:
-                 print(f"{current_r:.2f}      | {resultado['bid']:.2f} | {resultado['ask']:.2f} | {resultado['vol']:.5f}")
-                 last_r = current_r_rounded
-        else:
-            # Si no hay resultado (ej: iniciando volatilidad), imprimimos status simple
-            mid = (tick.bid_price + tick.ask_price) / 2
-            print(f"Recibiendo datos... Mid: {mid:.2f} (Calculando Volatilidad)", end="\r")
+        # Recuperamos el cerebro específico de esa moneda
+        strategy = strategies[tick.symbol]
+        
+        # Ejecutamos cálculo
+        result = strategy._calc_reservation_price(tick)
+        
+        # Gestión de Logs (Para no saturar consola)
+        # Solo imprimimos si el precio cambió respecto al último visto DE ESTA MONEDA
+        current_r = round(result['reservation_price'], 2)
+        if strategy.last_printed_price != current_r:
+            print(f"{result['symbol']:<8} | {current_r:<10.2f} | {result['vol']:.6f}")
+            strategy.last_printed_price = current_r

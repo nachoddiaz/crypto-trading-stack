@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from typing import Optional
 from models import Registro
 import reserve_price as rp
+from collections import defaultdict
 
-#importar métodos de almacenamientos
 #Aseguro monotonizidad
 class DataGuard:
     def __init__(self):
@@ -70,13 +70,13 @@ class ExchangeDrivers(ABC):
         self.max_backoff = 60
         self.backoff_factor = 2
 
-    async def backoff(self, symbol: str):
+    async def backoff(self, symbols: list[str]):
         current_delay = self.initial_backoff
         while True:
             try:
                 start_time = time.time()
-                print(f"🔄 Intentando conectar a {symbol}...")
-                await self.subscribe(symbol)
+                print(f"🔄 Intentando conectar a {symbols}...")
+                await self.subscribe(symbols)
 
             except (websockets.ConnectionClosed, OSError, asyncio.TimeoutError) as e:
                 print(f"⚠️ Conexión perdida ({e}).")
@@ -94,7 +94,7 @@ class ExchangeDrivers(ABC):
         
 
     @abstractmethod
-    async def subscribe(self, symbol: str):
+    async def subscribe(self, symbols: list[str]):
         """Método para conectarse al socket"""
         pass
 
@@ -105,25 +105,30 @@ class ExchangeDrivers(ABC):
 
 #Adaptadores, en nuestro caso Binance
 class BinanceDriver(ExchangeDrivers):
-    async def subscribe(self, symbol: str):
+    async def subscribe(self, symbols: list[str]):
         #con depth me traigo el libro de precios, usamos bookTicker para traer el precio de la orden
-        uri = f"wss://stream.binance.com:9443/ws/{symbol.lower()}@bookTicker"
-        print(f"Concenctando a Binance para {symbol} vía {uri}")
+        streams = "/".join([f"{s.lower()}@bookTicker" for s in symbols])
+        uri = f"wss://stream.binance.com:9443/stream?streams={streams}"
+        print(f"Concenctando a Binance para {len(symbols)}: {symbols}")
 
         #Guardo el estado
-        guard = DataGuard()
+        guards = defaultdict(DataGuard)
+
+
 
         async with websockets.connect(uri) as websocket:
             async for msg in websocket:
-                normalized = self.normlize_message(msg, symbol)
-                if normalized and guard.monotonicity_duplicates(normalized):
+                raw_data = json.loads(msg)
+                payload = raw_data.get('data')
+                symbol = payload.get('s')
+                normalized = self.normlize_message(payload, symbol)
+                if normalized and guards[symbol].monotonicity_duplicates(normalized):
                     await self.queue.put(normalized)
             raise websockets.ConnectionClosed(None, None)        
         
-
-    def normlize_message(self, raw_msg: str, symbol: str) -> Optional[Registro]:
+    #Normalizo el mensaje símbolo por símbolo
+    def normlize_message(self, data: dict, symbol: str) -> Optional[Registro]:
         try:
-            data = json.loads(raw_msg)
             bid_price = float(data["b"])
             bid_quantity = float(data["B"])
             ask_price = float(data["a"])
@@ -142,21 +147,19 @@ class BinanceDriver(ExchangeDrivers):
             return None
 
 
-
 async def main():
     #creo la tubería de datos
     cola = asyncio.Queue()
     exchange_name = "binance"
-    
+    target_symbols  = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "ADAUSDT", "LINKUSDT", "HYPEUSDT"]
     if exchange_name == "binance":
         #Asigno el driver y el simbolo
         driver = BinanceDriver(cola)
-        symbol = "btcusdt"
     else:
         raise ValueError("Exchange no soportado")
 
     await asyncio.gather(
-        driver.subscribe(symbol),
+        driver.backoff(target_symbols),
         #la conecto con el consumidor de precios
         rp.reserve_price(cola)
     )

@@ -4,10 +4,6 @@ Creación del directorio Justificaciones_Uso donde explicaré los pros y contras
 Creacion del directorio Testeo_Strats donde explicaré el proceso de elección de los parámetros para las estrategias
 
 
-Creación de un script de prueba con el que testear el mejor almacenamiento para implementar la conexión RestAPI
-
-
-
 Creación un script de prueba con el que testear el mejor almacenamiento para implementar la conexión socket
     
     Instalación de las librerías necesarias
@@ -92,4 +88,30 @@ PostgreSQL tienen una velocidad suficiente (5000 ticks/s mientras Binance en tr�
 Decisión: se selecciona PostgreSQL
 
 ----------------------------------------------------------------------------------------------------------------------------------
-Una vez seleccionado el almacenamiento, proceod a implementar el socket con el resto de activos modularizando el código
+Una vez seleccionado el almacenamiento, proceod a implementar el socket con el resto de criptos modularizando el código
+Error: crear interfaz y adaptador para cada cripto ya que cada cripto crearía su propio socket, aumenta la complejidad en O(n)
+Solución: el driver del exchange seleccionado maneja la conexión pero la interfaz debe soportar una lista, no sólo un símbolo
+    1.1: URL multiplexada para recibir múltiples criptos
+    1.2: la url de @bookTicker debe cambiar de "wss://stream.binance.com:9443/ws/{symbol.lower()}@bookTicker" a "wss://stream.binance.com:9443/stream?streams=CRIPTO1@bookTicker,CRIPTO2@bookTicker..."
+
+Problema: para implantar monotonicidad y no duplicidad necesito aplcar esta clase a cada par
+Solución: creo un diccionario inteligente con "defaultdict" para on crear uno por uno para cada par
+
+Debo cambiar la función de normalización para que soporte el diccionario con todos los pares de cripto. Además, debo cambiar mi dataclass "registro" para que soporte el campo "símbolo".
+Por otro lado, debo cambiar la clase que calcula el precio de reserva para que soporte el diccionario con todos los pares de cripto.
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+**Ingesta de datos via RESTAPI**
+
+Utilizando /api/v3/klines obtenemos los valores OHLCV para cada símbolo en el intervalo de timepo indicado (tíene limite de 1000 velas por petición)
+
+Añado la librería request
+
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+Almacenamiento de los datos ingestados por el socket
