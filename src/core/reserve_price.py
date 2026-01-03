@@ -1,8 +1,8 @@
 import math
 import asyncio
 from dataclasses import dataclass
-from typing import Optional
-from models import Registro
+from typing import Optional, Dict
+from src.core.models import Registro
 
 #Clase que calcula el reservation price para cada symbol
 class ReservePrice:
@@ -55,7 +55,7 @@ class ReservePrice:
             self.last_mid_price = current_mid
             self.last_vol_update = timestamp
 
-    def _calc_reservation_price(self, tick: Registro) -> float:
+    def _calc_reservation_price(self, tick: Registro) -> dict:
         """
         MÉTODO PRINCIPAL (HOT PATH)
         Se ejecuta cada vez que llega un mensaje del socket.
@@ -101,7 +101,7 @@ async def reserve_price(queue: asyncio.Queue):
     print("🚀 Iniciando Motor de Precios Multi-Activo...")
     
     # DICCIONARIO DE ESTADO: Mapea "BTCUSDT" -> Objeto Calculadora BTC
-    strategies: Dict[str, ReservePriceCalculator] = {}
+    strategies: Dict[str, ReservePrice] = {}
     
     print(f"{'SYM':<8} | {'Reserva':<10} | {'Volatilidad':<10}")
     print("-" * 35)

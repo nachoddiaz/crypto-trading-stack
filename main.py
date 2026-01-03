@@ -1,6 +1,6 @@
 import asyncio
-from Socket_connection import BinanceDriver
-import reserve_price as rp
+from src.adapters.socket.binance_socket import BinanceDriver
+from src.core import reserve_price as rp
 
 async def main():
     #creo la tubería de datos

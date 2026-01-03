@@ -113,7 +113,9 @@ Añado la librería request
 
 Al ir metiendo más funcionalidades (ingesta de datos via rest y socket + reserva de precio + almacenamiento en bbdd) necesito una arquitectura más modular que escale mejor, itnento impleemntar arquitectura hexagonal con puertos (interfaces) y adaptadores (implementación concreta)
 
+----------------------------------------------------------------------------------------------------------------------------------
 
+Al cambiar el nombre del proyecto para realizar la entrega, debo cambiar también el nombre del entorno virtual, para ellos ejecuto rm -rf .venv y uv sync que sincroniza el entorno virtual con el archivo uv.lock
 
 
 ----------------------------------------------------------------------------------------------------------------------------------

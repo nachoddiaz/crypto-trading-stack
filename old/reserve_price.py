@@ -2,7 +2,7 @@ import math
 import asyncio
 from dataclasses import dataclass
 from typing import Optional
-from models import Registro
+from src.core.models import Registro
 
 #Clase que calcula el reservation price para cada symbol
 class ReservePrice:

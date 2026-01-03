@@ -6,7 +6,7 @@ import math
 from abc import ABC, abstractmethod  # Abstract Base Class
 from dataclasses import dataclass
 from typing import Optional
-from models import Registro
+from src.core.models import Registro
 import reserve_price as rp
 from collections import defaultdict
 
