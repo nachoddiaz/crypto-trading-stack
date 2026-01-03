@@ -120,4 +120,12 @@ Al cambiar el nombre del proyecto para realizar la entrega, debo cambiar tambié
 
 ----------------------------------------------------------------------------------------------------------------------------------
 
-Almacenamiento de los datos ingestados por el socket
+Almacenamiento de los datos ingestados por el socket, necesito SQLAlchemy para poder decirle a python como traducir los objetos descargados a filas en la base de datos PostgreSql
+Instalo asyncpg
+En el archivo sql_models.py defino la estructura de la tabla
+En el archivo repository.py gestiono la conexión, creo las tablas si no existen, creo una lista de diccionarios (del buffer) y los inserto, además una función auxiuliar para testear correctamente la conexión.
+En "test_db_connection.py" realizo pruebas para verificar que la conexión a la base de datos es correcta, para ello una vez creado el script, levanto mi servidor docker con "ocker run --name pg-test -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=trading_db -p 5432:5432 -d postgres:13"
+
+Ahora realizo la prueba con datos que vienen del socket.
+Para hacerlo, implemento un buffer como solución, el cual recibe los paquetes del socket y los inserta en la base de datos en segundo plano.
+Guardo datos cada 50ticks o cada 2 segndos
