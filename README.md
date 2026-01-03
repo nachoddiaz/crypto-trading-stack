@@ -129,3 +129,4 @@ En "test_db_connection.py" realizo pruebas para verificar que la conexión a la 
 Ahora realizo la prueba con datos que vienen del socket.
 Para hacerlo, implemento un buffer como solución, el cual recibe los paquetes del socket y los inserta en la base de datos en segundo plano.
 Guardo datos cada 50ticks o cada 2 segndos
+Para poder visualizar los datos almacenados dentro de la propia base de datos, uso la extensión SQLTools

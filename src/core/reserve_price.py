@@ -3,6 +3,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Optional, Dict
 from src.core.models import Registro
+from src.core.data_persister import DataPersister
 
 #Clase que calcula el reservation price para cada symbol
 class ReservePrice:
@@ -93,11 +94,18 @@ class ReservePrice:
         return {
             "symbol": self.symbol,
             "reservation_price": reservation_price,
-            "vol": self.volatility            
+            "vol": self.volatility,
+
+            # Datos originales del mercado (Necesarios para la base de datos)
+            "time": tick.time,             # <--- Esto es lo que faltaba
+            "bid_price": tick.bid_price,
+            "ask_price": tick.ask_price,
+            "bid_quantity": tick.bid_quantity,
+            "ask_quantity": tick.ask_quantity     
         }
             
 #Gestionar las múltiples instancias        
-async def reserve_price(queue: asyncio.Queue):
+async def reserve_price(queue: asyncio.Queue, persister: DataPersister):
     print("🚀 Iniciando Motor de Precios Multi-Activo...")
     
     # DICCIONARIO DE ESTADO: Mapea "BTCUSDT" -> Objeto Calculadora BTC
@@ -124,6 +132,8 @@ async def reserve_price(queue: asyncio.Queue):
         
         # Ejecutamos cálculo
         result = strategy._calc_reservation_price(tick)
+
+        await persister.add_metric(result)
         
         # Gestión de Logs (Para no saturar consola)
         # Solo imprimimos si el precio cambió respecto al último visto DE ESTA MONEDA
@@ -131,3 +141,5 @@ async def reserve_price(queue: asyncio.Queue):
         if strategy.last_printed_price != current_r:
             print(f"{result['symbol']:<8} | {current_r:<10.2f} | {result['vol']:.6f}")
             strategy.last_printed_price = current_r
+
+        queue.task_done()
