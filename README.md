@@ -109,6 +109,10 @@ Utilizando /api/v3/klines obtenemos los valores OHLCV para cada símbolo en el i
 
 Añado la librería request
 
+----------------------------------------------------------------------------------------------------------------------------------
+
+Al ir metiendo más funcionalidades (ingesta de datos via rest y socket + reserva de precio + almacenamiento en bbdd) necesito una arquitectura más modular que escale mejor, itnento impleemntar arquitectura hexagonal con puertos (interfaces) y adaptadores (implementación concreta)
+
 
 
 
