@@ -130,3 +130,12 @@ Ahora realizo la prueba con datos que vienen del socket.
 Para hacerlo, implemento un buffer como solución, el cual recibe los paquetes del socket y los inserta en la base de datos en segundo plano.
 Guardo datos cada 50ticks o cada 2 segndos
 Para poder visualizar los datos almacenados dentro de la propia base de datos, uso la extensión SQLTools
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+Tengo problemas de escalabilidad al tener una arquitectura monolítica asíncrona ya que mi proceso asíncrono (asyncio.Queue) vive en la RAM, por lo tanto necesito implementar una arquitectura microservicios, pese a aumentar un poco la latencia, mi programa será persistente (Ej: resistente ante bloqueos en recepción de datos) y más escalable.
+No uso Kafka por su complejidad, mantenimiento y sobre todo porque con este orden de mágintud de símbolos (10) no es necesario.
+El punto medio es usar Redis Stream con lo que varios consumidores puedan leer el mismo dato (estrategia y dashboard)
+Instalo redis y msgpack porque quiero conversiones JSON rápidas.
+Para no alterar la lógica del socket, creo una clase RedisBus que también tenga un método .put(), pero que por dentro serialice con msgpack y lo envíe a Redis.
