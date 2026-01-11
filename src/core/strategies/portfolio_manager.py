@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 import sys
 
 # Imports internos
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
 from src.core.market_state import MarketState
 from src.core.strategies.implementations import MACrossover, MomentumStrategy, EngulfingPattern

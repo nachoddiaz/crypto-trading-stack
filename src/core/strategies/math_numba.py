@@ -1,4 +1,5 @@
 import numpy as np
+import numba as nb
 from numba import njit
 
 # --- 1. CRUCE DE MEDIAS (Optimizado) ---
@@ -85,6 +86,7 @@ def backtest_momentum(prices, period, threshold):
 # --- 3. PATRÓN VELAS (Optimizado) ---
 @njit(fastmath=True, nogil=True, cache=True)
 def backtest_engulfing(opens, highs, lows, closes, trend_ema):
+
     """
     Optimiza el patrón envolvente filtrando por tendencia (EMA).
     El parámetro a optimizar es la ventana de la tendencia (trend_ema).
@@ -132,3 +134,50 @@ def backtest_engulfing(opens, highs, lows, closes, trend_ema):
             position = signal
 
     return pnl
+
+# 3.1 Calcula patrón Engulfing SOLO en la última vela cerrada.
+nb.jit(nopython=True, cache=True)
+def calc_engulfing_signal(opens: np.ndarray, highs: np.ndarray, lows: np.ndarray, closes: np.ndarray) -> int:
+    """
+    HOT PATH: Calcula patrón Engulfing SOLO en la última vela cerrada.
+    Argumentos: 4 arrays (opens, highs, lows, closes)
+    Retorna: int (-1 venta, 1 compra, 0 nada)
+    """
+    # Necesitamos al menos 2 velas para un patrón de 2 velas
+    if len(closes) < 2:
+        return 0
+    
+    # Índices: -1 es la última vela cerrada, -2 es la anterior
+    # Vela actual (Signal Candle)
+    curr_open = opens[-1]
+    curr_close = closes[-1]
+    curr_high = highs[-1]
+    curr_low = lows[-1]
+    
+    # Vela anterior (Setup Candle)
+    prev_open = opens[-2]
+    prev_close = closes[-2]
+    
+    # Lógica Bullish Engulfing (Envolvente Alcista)
+    # 1. Vela anterior fue roja (bajista)
+    prev_is_red = prev_close < prev_open
+    # 2. Vela actual es verde (alcista)
+    curr_is_green = curr_close > curr_open
+    # 3. El cuerpo actual envuelve al cuerpo anterior
+    engulfs = (curr_open <= prev_close) and (curr_close >= prev_open)
+    
+    if prev_is_red and curr_is_green and engulfs:
+        return 1
+
+    # Lógica Bearish Engulfing (Envolvente Bajista)
+    # 1. Vela anterior fue verde
+    prev_is_green = prev_close > prev_open
+    # 2. Vela actual es roja
+    curr_is_red = curr_close < curr_open
+    # 3. El cuerpo actual envuelve al anterior
+    engulfs_bear = (curr_open >= prev_close) and (curr_close <= prev_open)
+    
+    if prev_is_green and curr_is_red and engulfs_bear:
+        return -1
+        
+    return 0
