@@ -13,7 +13,7 @@ from src.core.models import Candle
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/trading_db"
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres_db"
 )
 
 class AsyncRepository:

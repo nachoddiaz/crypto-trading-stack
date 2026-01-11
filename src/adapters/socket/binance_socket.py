@@ -69,19 +69,31 @@ class BinanceDriver(ExchangeDrivers):
 
         #Guardo el estado
         guards = defaultdict(DataGuard)
-
-
+        msg_counter = 0  # <--- 1. INICIALIZAR CONTADOR
 
         async with websockets.connect(uri) as websocket:
+            print("✅ Conectado. Esperando datos...") # <--- Confirmación visual
+            
             async for msg in websocket:
                 raw_data = json.loads(msg)
                 payload = raw_data.get('data')
                 symbol = payload.get('s')
+                
                 normalized = self.normlize_message(payload, symbol)
+                
                 if normalized and guards[symbol].monotonicity_duplicates(normalized):
+                    # Enviar a Redis como dict
                     await self.queue.put(normalized.to_dict())
-            raise websockets.ConnectionClosed(None, None)        
-        
+
+                    # --- 2. LOGICA DE LATIDO (HEARTBEAT) ---
+                    msg_counter += 1
+                    if msg_counter % 100 == 0:
+                        print(f"⚡ Procesados {msg_counter} ticks... (Último: {symbol})")
+                    # ---------------------------------------
+
+        raise websockets.ConnectionClosed(None, None)
+
+            
     #Normalizo el mensaje símbolo por símbolo
     def normlize_message(self, data: dict, symbol: str) -> Optional[Registro]:
         try:

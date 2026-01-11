@@ -101,7 +101,9 @@ class ReservePrice:
             "bid_price": tick.bid_price,
             "ask_price": tick.ask_price,
             "bid_quantity": tick.bid_quantity,
-            "ask_quantity": tick.ask_quantity     
+            "ask_quantity": tick.ask_quantity,
+            "inventory_q": self.inventory_q,
+            "volatility": self.volatility     
         }
             
 #Gestionar las múltiples instancias        

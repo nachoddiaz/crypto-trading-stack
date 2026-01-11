@@ -157,7 +157,7 @@ Creo el programa que mantiene el histórico inmutable y la vela actual mutable e
 ----------------------------------------------------------------------------------------------------------------------------------
 Con esta nueva arquitactura, necesito seuguir una serie de pasos para correr el programa:
     1. Levantar postgres: docker run --name pg-test -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=postgres_db -p 5432:5432 -d postgres:13
-    2. Crear base de datos:  docker exec -it pg-test psql -U postgres -c "CREATE DATABASE trading_db;"
+    2. Crear base de datos:  docker exec -it pg-test psql -U postgres -c "CREATE DATABASE postgres_db;"
     3. Levantar redis: docker run --name redis-bus -p 6379:6379 -d redis:alpine
     4. Vairifcar levantamiento: docker ps
     5. Ejecutar persister
@@ -173,4 +173,10 @@ Cambio el script que ingiere datos del socket para pasar a diccionario los datos
 El activo HYPEUSDT no existe en Binance, detectado por mi error handling en el script binance_rest.py "except Exception as e:
             print(f"Error descargando histórico para {symbol}: {e}")
             return []"
-por lo tanto se sustituye por "DOTUSDT" 
+por lo tanto se sustituye por "DOTUSDT"
+
+Tengo silencio por parte del programa al conectar via socket  (binance_socket.py), introduzco logging para ver donde está el fallo.
+Gracias a esto veo que no está fallado, simplemente está ingiriendo datos
+
+----------------------------------------------------------------------------------------------------------------------------------
+Al ver la base de dato, veo que no se están calculando la volatilidad ni el precio de reserva, modifico la función de persistencia y la del precio dre reseva
