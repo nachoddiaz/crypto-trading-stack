@@ -179,4 +179,25 @@ Tengo silencio por parte del programa al conectar via socket  (binance_socket.py
 Gracias a esto veo que no está fallado, simplemente está ingiriendo datos
 
 ----------------------------------------------------------------------------------------------------------------------------------
-Al ver la base de dato, veo que no se están calculando la volatilidad ni el precio de reserva, modifico la función de persistencia y la del precio dre reseva
+Al ver la base de dato, veo que no se están calculando la volatilidad ni el precio de reserva, modifico la función de persistencia y la del precio de reserva
+Cambio el fichero ingestor.py para que calcule la volatilidad y el precio de reserva
+
+----------------------------------------------------------------------------------------------------------------------------------
+Estrategias
+----------------------------------------------------------------------------------------------------------------------------------
+
+Uso VectorBT para crear estrategias por su rapidez en cálculos vectorizados
+Creo la el fichero src/core/strategies/base.py donde implemento la metaclas y el decorador necesarios por el proyecto para validar correcta definicion de estratrgias y medición del tiempo de ejecución.
+
+Usaré numba para optimizar los cálculos y Grid Search Vectorizado para optimización de parámetros.
+instalo numba.
+
+
+---------------------------------------------------------------------------------------------------------------------------------- 
+Creo el script src/core/strategies/math_numba.py y lo invoco en el optimizador de parámetros optimizer.py desde donde escogeré los mejores parámetros para cada estrategia y activo.
+
+Desde la función portfolio_manager.py leo el JSON con los mejores parámetros por activo y estrategia  
+
+Por exceso de complejidad, calculo los parámetros de la estrategia unicamente para velas de 1m para mostrar actividad.
+
+Elimino lookahead bias

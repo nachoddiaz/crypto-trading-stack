@@ -1,0 +1,80 @@
+{
+    "BTCUSDT": {
+        "MA_CROSS": {
+            "fast": 19,
+            "slow": 50
+        },
+        "MOMENTUM": {
+            "period": 10,
+            "threshold": 0.005
+        },
+        "CANDLE_ENGULF": {
+            "trend_ema": 20
+        }
+    },
+    "ETHUSDT": {
+        "MA_CROSS": {
+            "fast": 19,
+            "slow": 180
+        },
+        "MOMENTUM": {
+            "period": 10,
+            "threshold": 0.01
+        },
+        "CANDLE_ENGULF": {
+            "trend_ema": 180
+        }
+    },
+    "BNBUSDT": {
+        "MA_CROSS": {
+            "fast": 19,
+            "slow": 160
+        },
+        "MOMENTUM": {
+            "period": 10,
+            "threshold": 0.005
+        },
+        "CANDLE_ENGULF": {
+            "trend_ema": 160
+        }
+    },
+    "SOLUSDT": {
+        "MA_CROSS": {
+            "fast": 2,
+            "slow": 50
+        },
+        "MOMENTUM": {
+            "period": 14,
+            "threshold": 0.001
+        },
+        "CANDLE_ENGULF": {
+            "trend_ema": 40
+        }
+    },
+    "ADAUSDT": {
+        "MA_CROSS": {
+            "fast": 2,
+            "slow": 20
+        },
+        "MOMENTUM": {
+            "period": 14,
+            "threshold": 0.001
+        },
+        "CANDLE_ENGULF": {
+            "trend_ema": 40
+        }
+    },
+    "XRPUSDT": {
+        "MA_CROSS": {
+            "fast": 18,
+            "slow": 50
+        },
+        "MOMENTUM": {
+            "period": 10,
+            "threshold": 0.001
+        },
+        "CANDLE_ENGULF": {
+            "trend_ema": 40
+        }
+    }
+}
