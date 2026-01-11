@@ -7,7 +7,8 @@ from sqlalchemy.future import select
 from sqlalchemy import desc
 
 #Imports internos
-from .sql_models import Base, TickSQL
+from .sql_models import Base, TickSQL, CandleSQL
+from src.core.models import Candle
 
 
 DATABASE_URL = os.getenv(
@@ -67,3 +68,33 @@ class AsyncRepository:
             stmt = select(TickSQL).filter_by(symbol=symbol).order_by(desc(TickSQL.exchange_time)).limit(limit)
             result = await session.execute(stmt)
             return result.scalars().all()
+
+    async def save_candles(self, symbol: str, candles: List[Candle]):
+        """
+        Guarda un lote de velas históricas de forma eficiente (Batch Insert).
+        Argumentos:
+            symbol: El par (ej. 'BTCUSDT'). Se pasa aparte para no repetirlo en cada objeto Candle en memoria.
+            candles: Lista de objetos Candle (dataclass).
+        """
+        if not candles:
+            return
+
+        async with self.async_session() as session:
+            async with session.begin():
+                # Golden Rule: Operation Fusion. 
+                # Creamos la lista de objetos ORM en una comprensión (rápida) y insertamos de golpe.
+                sql_objects = [
+                    CandleSQL(
+                        symbol=symbol,
+                        timestamp=c.timestamp,
+                        open=c.open,
+                        high=c.high,
+                        low=c.low,
+                        close=c.close,
+                        volume=c.volume,
+                        closed=c.closed
+                    ) for c in candles
+                ]
+                session.add_all(sql_objects)
+            # El commit es automático al salir del contexto
+            print(f"💾 Persistidas {len(sql_objects)} velas para {symbol}.")

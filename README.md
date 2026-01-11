@@ -103,14 +103,6 @@ Por otro lado, debo cambiar la clase que calcula el precio de reserva para que s
 
 ----------------------------------------------------------------------------------------------------------------------------------
 
-**Ingesta de datos via RESTAPI**
-
-Utilizando /api/v3/klines obtenemos los valores OHLCV para cada símbolo en el intervalo de timepo indicado (tíene limite de 1000 velas por petición)
-
-Añado la librería request
-
-----------------------------------------------------------------------------------------------------------------------------------
-
 Al ir metiendo más funcionalidades (ingesta de datos via rest y socket + reserva de precio + almacenamiento en bbdd) necesito una arquitectura más modular que escale mejor, itnento impleemntar arquitectura hexagonal con puertos (interfaces) y adaptadores (implementación concreta)
 
 ----------------------------------------------------------------------------------------------------------------------------------
@@ -124,7 +116,7 @@ Almacenamiento de los datos ingestados por el socket, necesito SQLAlchemy para p
 Instalo asyncpg
 En el archivo sql_models.py defino la estructura de la tabla
 En el archivo repository.py gestiono la conexión, creo las tablas si no existen, creo una lista de diccionarios (del buffer) y los inserto, además una función auxiuliar para testear correctamente la conexión.
-En "test_db_connection.py" realizo pruebas para verificar que la conexión a la base de datos es correcta, para ello una vez creado el script, levanto mi servidor docker con "ocker run --name pg-test -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=trading_db -p 5432:5432 -d postgres:13"
+En "test_db_connection.py" realizo pruebas para verificar que la conexión a la base de datos es correcta, para ello una vez creado el script, levanto mi servidor docker con "docker run --name pg-test -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=trading_db -p 5432:5432 -d postgres:13"
 
 Ahora realizo la prueba con datos que vienen del socket.
 Para hacerlo, implemento un buffer como solución, el cual recibe los paquetes del socket y los inserta en la base de datos en segundo plano.
@@ -139,3 +131,46 @@ No uso Kafka por su complejidad, mantenimiento y sobre todo porque con este orde
 El punto medio es usar Redis Stream con lo que varios consumidores puedan leer el mismo dato (estrategia y dashboard)
 Instalo redis y msgpack porque quiero conversiones JSON rápidas.
 Para no alterar la lógica del socket, creo una clase RedisBus que también tenga un método .put(), pero que por dentro serialice con msgpack y lo envíe a Redis.
+Modifico la función data_persister porque ya lo gestiona Redis.
+Ahora mi código fuciona tal que: 
+    1. ingestor.py Baja datos y los empuja a Redis
+    2. Redis es la tubería e datos
+    3. persister.py recibe datos de Redis y los pasa a la lógica
+    4. data_persister.py recibe datos de la lógica y los inserta en la base de datos
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+**Ingesta de datos via RESTAPI**
+
+Utilizando /api/v3/klines obtenemos los valores OHLCV para cada símbolo en el intervalo de timepo indicado (tíene limite de 1000 velas por petición)
+
+Añado la librería request
+
+Debo separar el histórical buffer de la vela actual por lo tanto dentro de mi script models.py creo la estructura Candle con el atributo # __slots__ que ahorra RAM y hace el acceso a atributos más rápido.
+
+Cambio mi script de obtencion de datos via RestAPI para que no devuelva un DataFrame (pesado), sino una lista limpia de objetos Candle listos para inyectar en un programa que crearé para mantener el histórico inmutable y la vela actual mutable.
+
+Cambio el ingestor.py para que haga una carga inicial antes de abrir el socket.
+
+Creo el programa que mantiene el histórico inmutable y la vela actual mutable en market_state.py
+
+----------------------------------------------------------------------------------------------------------------------------------
+Con esta nueva arquitactura, necesito seuguir una serie de pasos para correr el programa:
+    1. Levantar postgres: docker run --name pg-test -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=postgres_db -p 5432:5432 -d postgres:13
+    2. Crear base de datos:  docker exec -it pg-test psql -U postgres -c "CREATE DATABASE trading_db;"
+    3. Levantar redis: docker run --name redis-bus -p 6379:6379 -d redis:alpine
+    4. Vairifcar levantamiento: docker ps
+    5. Ejecutar persister
+    6. Ejecutar ingestor
+
+----------------------------------------------------------------------------------------------------------------------------------
+Error: Al pasar por Redis mi dataclass Registro, estoy enviando un objeto Python (dataclass) directamente a Redis, pero Redis solo entiende texto o diccionarios.
+Modifico mi modelo Registro para incluir un método que devuelva un diccionario puro. Esto es mucho más rápido que usar librerías de reflexión.
+Cambio el script que ingiere datos del socket para pasar a diccionario los datos normalizados
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+El activo HYPEUSDT no existe en Binance, detectado por mi error handling en el script binance_rest.py "except Exception as e:
+            print(f"Error descargando histórico para {symbol}: {e}")
+            return []"
+por lo tanto se sustituye por "DOTUSDT" 

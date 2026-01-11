@@ -79,7 +79,7 @@ class BinanceDriver(ExchangeDrivers):
                 symbol = payload.get('s')
                 normalized = self.normlize_message(payload, symbol)
                 if normalized and guards[symbol].monotonicity_duplicates(normalized):
-                    await self.queue.put(normalized)
+                    await self.queue.put(normalized.to_dict())
             raise websockets.ConnectionClosed(None, None)        
         
     #Normalizo el mensaje símbolo por símbolo
