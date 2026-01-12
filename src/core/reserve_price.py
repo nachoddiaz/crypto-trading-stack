@@ -56,6 +56,14 @@ class ReservePrice:
             self.last_mid_price = current_mid
             self.last_vol_update = timestamp
 
+    def update_inventory_state(self, quantity: float):
+        """
+        Recibe la posición real del TraderEngine.
+        q > 0: Estamos largos -> bajaremos el precio de compra para no acumular más riesgo.
+        q < 0: Estamos cortos -> subiremos el precio para incentivar la compra.
+        """
+        self.inventory_q = quantity
+
     def _calc_reservation_price(self, tick: Registro) -> dict:
         """
         MÉTODO PRINCIPAL (HOT PATH)

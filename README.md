@@ -187,7 +187,16 @@ Estrategias
 ----------------------------------------------------------------------------------------------------------------------------------
 
 Uso VectorBT para crear estrategias por su rapidez en cálculos vectorizados
-Creo la el fichero src/core/strategies/base.py donde implemento la metaclas y el decorador necesarios por el proyecto para validar correcta definicion de estratrgias y medición del tiempo de ejecución.
+Creo la el fichero src/core/strategies/base.py donde implemento la metaclase y el decorador necesarios por el proyecto para validar correcta definicion de estratrgias y medición del tiempo de ejecución.
+
+El decorador será un medidor de latencia de las estrategias para poder indicar el número de datos con el que testear los parámetros óptimos de las estrategias.
+
+La metaclase se encargará de asignar un ID a cada estrategia para poder identificarla.
+
+Modificamos dos dunder methods:
+    1. __lt__ para que pueda ordenar listas desordenadas en el socket
+    2. __sub__ para obtener el cambio de precios de vela actual menos vela previa
+    
 
 Usaré numba para optimizar los cálculos y Grid Search Vectorizado para optimización de parámetros.
 instalo numba.
@@ -200,4 +209,47 @@ Desde la función portfolio_manager.py leo el JSON con los mejores parámetros p
 
 Por exceso de complejidad, calculo los parámetros de la estrategia unicamente para velas de 1m para mostrar actividad.
 
-Elimino lookahead bias
+----------------------------------------------------------------------------------------------------------------------------------
+Trader Engine
+----------------------------------------------------------------------------------------------------------------------------------
+Necesito crear el script cerebro del programa, este se encargará de los siguiente:
+    1. Mantener el portfolio
+    2. Ejecutar las señales que le vienen de "portfolio_manager.py" 
+    3. Actualizar valor de portfolio
+    4. Registro del trade en memoria
+    5. Retornar curva de capital
+    6. Retornar tabla de trades
+
+Como al calcular el resevation price necesito la cantidad en inventario de cada activo y posteriormente este precio al que se entra en el trade. Necesito un feedback loop.
+
+Añado la función de actualizar inventario en la clase ReservePrice.
+Añado un getter del inventario en el tradingEngine.
+
+Al introducir parámetros como la fee a pagar en ejecución, me surgió la pregunta sobre el price impact, para ello investigo como la aforntan tanto "takers" como "makers" y me doy cuenta de que el precio de reserva calculado es el que tiene un market-maker.
+
+Modelizo la fee a pagar mediante el precio de mercado +/- (half spread + exchange fee + Impact)
+Donde El impacto se modeliza como coeficiente de impacto * vol * sqrt(Qty/Volumen).
+El coeficiente de impacto es calibrable pero excede el scope del proyecto.
+
+Creo las funciones auxiliares de reporte de trades y curva de capital.
+
+Me surgen dudas sobre el sizing del trade, con las piezas clave del precio de reserva y el price impact, intento encontrar una Q que maximice el beneficio de la siguiente forma:
+    1. Mi edge (delta) será | precio reserva (pr) - Pmkt | - FeeExchange
+    2. Por lo tanto el beneficio (pi) será de: Q*delta - Q*(Y*sigma*sqrt(Qty/Volumen))
+    3. Optimizo respecto a Q -> delta - (3/2)*(Y*sigma/sqrt(Volumen)) * sqrt(Q) = 0
+    4. Q* = (4/9)*(delta^2*Volumen)/(Y*sigma)^2.
+
+Introduzco un tamaño máximo de orden para evitar pérdidas en un 5% del capital disponible.
+Ejecuto pruebas en demo_trade_lifecycle.py pero veo que Q* explota debido a los órdenes de magnitud de delta y sigma.
+
+Exploro el sizing mediante un método combinado de volatility targeting y maximum marticipation rate donde el tamaño de la orden Q* será min(RiskBudget/(Pmkt*sigma_i); 10%*VolumenTotal_i).
+Intento aprovechar la información que proporciona el reservation price para calcular el tamaño de la orden Q* óptima. Busco cuantas desviaciiones típicas tenemos de diferencia con el mercado y la normalizo con lo que consigo un multiplicador, edge = | rp - Pmkt | / (Pmkt*sigma)
+base = RiskBudget/(Pmkt*sigma_i)
+De esta forma, Q* = min(base * edge, 10%*VolumenTotal_i)
+
+Uso __slots__ para optimizar el tamaño de la memoria sustituyendo __dict__ lo cual es crucial si en u nfuturo quiero aumentar el numero de pares tradeables
+
+#################################
+####### Hay que meter reservatino price en la base de datos RESTAPI
+
+

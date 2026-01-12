@@ -1,0 +1,66 @@
+import time
+from abc import ABC, abstractmethod
+import numpy as np
+from typing import Dict, Any
+
+# --- DECORADOR: Monitorización de Latencia ---
+def measure_latency(func):
+    """
+    Decorador que mide el tiempo de ejecución de la estrategia en el Hot Path.
+    Si una estrategia tarda demasiado, podría bloquear el procesamiento de ticks.
+    """
+    def wrapper(*args, **kwargs):
+        # High-resolution timer para medir microsegundos
+        start = time.perf_counter()
+        
+        result = func(*args, **kwargs)
+        
+        # Calculamos delta en milisegundos
+        dt = (time.perf_counter() - start) * 1000 
+        
+        # En un sistema real, aquí enviaríamos métricas a Prometheus/Grafana
+        # Para el proyecto, validamos que no rompa el presupuesto de latencia (ej. 1ms)
+        # if dt > 1.0: 
+        #     print(f"⚠️ SLOW WARNING: {func.__qualname__} tardó {dt:.4f} ms")
+            
+        return result
+    return wrapper
+
+# --- METACLASE: Validación de Arquitectura ---
+class StrategyMeta(type):
+    """
+    Fuerza que todas las estrategias definan un 'ID' único y sigan las reglas del sistema.
+    Esto evita errores humanos al crear nuevas estrategias.
+    """
+    def __new__(cls, name, bases, dct):
+        # Ignoramos la clase base abstracta para evitar recursión infinita
+        if name == "BaseStrategy":
+            return super().__new__(cls, name, bases, dct)
+        
+        # Validación 1: Existencia de ID
+        if "ID" not in dct:
+            raise TypeError(f"❌ Error de Diseño: La estrategia '{name}' debe definir un atributo de clase 'ID'.")
+        
+        # Validación 2: Convención de Nombres (Mayúsculas)
+        strategy_id = dct.get("ID")
+        if not isinstance(strategy_id, str) or not strategy_id.isupper():
+            raise ValueError(f"❌ Convención: El ID '{strategy_id}' en '{name}' debe ser un string en MAYÚSCULAS.")
+
+        return super().__new__(cls, name, bases, dct)
+
+# --- CLASE BASE ABSTRACTA ---
+class BaseStrategy(ABC, metaclass=StrategyMeta):
+    """
+    Clase padre de la que deben heredar todas las implementaciones.
+    Garantiza compatibilidad con el PortfolioManager.
+    """
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def calculate(self, closes: np.ndarray, opens: np.ndarray, highs: np.ndarray, lows: np.ndarray) -> int:
+        """
+        Método principal que debe implementar la lógica (preferiblemente usando Numba).
+        Retorna: 1 (Compra), -1 (Venta), 0 (Neutro)
+        """
+        pass

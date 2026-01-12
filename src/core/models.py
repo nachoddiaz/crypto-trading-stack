@@ -37,3 +37,13 @@ class Candle:
     close: float
     volume: float
     closed: bool # Flag para saber si es inmutable
+
+    def __lt__(self, other):
+        if not isinstance(other, Candle):
+            return NotImplemented
+        return self.timestamp < other.timestamp
+
+    def __sub__(self, other):
+        if not isinstance(other, Candle):
+            return NotImplemented
+        return self.close - other.close

@@ -84,7 +84,6 @@ class PortfolioManager:
             sig = strategy.calculate(closes=closes, opens=opens, highs=highs, lows=lows)
             
             # Sistema de Votación Simple
-            # Podrías añadir pesos aquí: sig * strategy.weight
             final_vote += sig
 
         # Lógica de Consenso para Portfolio Equiponderado
