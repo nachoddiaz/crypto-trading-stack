@@ -98,6 +98,9 @@ class TraderEngine:
         
         if q_optimal <= 0: return
 
+        denom = market_price * volatility if volatility > 1e-9 else 1.0
+        edge_metric = abs(reserve_price - market_price) / denom
+
         # --- 3. Ejecución y Ajuste de Inventario ---
         if symbol not in self.crypto_balances:
             self.crypto_balances[symbol] = 0.0
@@ -155,7 +158,7 @@ class TraderEngine:
             self.last_trade_ts[symbol] = timestamp
             
             self._log_trade(timestamp, symbol, "BUY" if signal == 1 else "SELL", 
-                           market_price, final_qty, abs(pnl_impact), q_optimal)
+                           market_price, final_qty, abs(pnl_impact), edge_metric, q_optimal)
 
     def update_valuation(self, current_prices: Dict[str, float], timestamp: float) -> float:
         """Mark-to-Market puro."""
@@ -174,7 +177,7 @@ class TraderEngine:
         })
         return total_equity
 
-    def _log_trade(self, ts, sym, side, px, qty, total, q_opt):
+    def _log_trade(self, ts, sym, side, px, qty, total, edge, q_opt):
         self._trades_history.append({
             "timestamp": ts,
             "symbol": sym,
@@ -182,6 +185,7 @@ class TraderEngine:
             "price": px,
             "qty": qty,
             "total_usdt": total,
+            "edge_delta": edge,
             "q_optimal_theory": q_opt
         })
 
