@@ -249,7 +249,27 @@ De esta forma, Q* = min(base * edge, 10%*VolumenTotal_i)
 
 Uso __slots__ para optimizar el tamaño de la memoria sustituyendo __dict__ lo cual es crucial si en u nfuturo quiero aumentar el numero de pares tradeables
 
+Creo un integration test que hace mocks para datos y estrategias y ejecuta el trading engine por lo tanto un trade se ejecuta si se cumple lo siguiente:
+    1. Estrategia: "¡Quiero comprar!" (Signal=1) ✅ SÍ
+    2. Reloj: "¿Pasó 1 min?" ✅ SÍ
+    3. Contable: "¿Ganamos más que la Fee?" ✅ SÍ
+    4. Matemático ($Q^*$): "¿El tamaño de la apuesta es lógico?" ✅ SÍ
+    5. Risk Manager: "¿Es seguro para la cuenta?" ✅ SÍ
+
 #################################
 ####### Hay que meter reservatino price en la base de datos RESTAPI
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+API vía FastAPI
+----------------------------------------------------------------------------------------------------------------------------------
+En la carpeta src/api creo los ficheros:
+    1.main.py (punto de entrada de la APP)
+    2.schemas.py (CREO que modelos definen qué formato de JSON enviará la API al Frontend.)
+    3.routes.py (conexión via HTTP con la bbdd)
+
+instalo fastapi, uvicorn y pydantic
+
+Debo modificar el script repository.py para que pueda leer de la BBDD las velas descargadas via rest API,  los trades ejecutados y las métricas
 
 

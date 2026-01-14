@@ -70,6 +70,7 @@ class AsyncRepository:
             return result.scalars().all()
 
     async def save_candles(self, symbol: str, candles: List[Candle]):
+
         """
         Guarda un lote de velas históricas de forma eficiente (Batch Insert).
         Argumentos:
@@ -98,3 +99,23 @@ class AsyncRepository:
                 session.add_all(sql_objects)
             # El commit es automático al salir del contexto
             print(f"💾 Persistidas {len(sql_objects)} velas para {symbol}.")
+
+    async def get_recent_candles(self, symbol: str, limit: int = 1000):
+        """Recupera velas históricas para el gráfico"""
+        query = """
+            SELECT time, open, high, low, close, volume 
+            FROM candles 
+            WHERE symbol = $1 
+            ORDER BY time DESC 
+            LIMIT $2
+        """
+        rows = await self.db_pool.fetch(query, symbol, limit)
+        # Invertimos para que el frontend reciba cronológico (viejo -> nuevo)
+        return list(reversed(rows))
+
+    async def get_trades(self, limit: int = 100):
+        """Recupera el historial de trades ejecutados"""
+        # Asumiendo que tienes una tabla 'trades'. Si no, créala o usa redis.
+        # Si guardas trades en JSON en una columna, adáptalo.
+        query = "SELECT * FROM trades ORDER BY time DESC LIMIT $1"
+        return await self.db_pool.fetch(query, limit)
