@@ -19,7 +19,7 @@ async def main():
     bus = RedisBus(stream_key="binance_ticks")
     exchange_name = "binance"
     target_symbols  = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "ADAUSDT", "LINKUSDT", "DOTUSDT"] #"HYPEUSDT"]
-
+    start_date = "2026-01-01"
 
     # 1. Inicialización de Estrategias y Estado
     market_states = {}
@@ -37,7 +37,7 @@ async def main():
         print(f"📥 Descargando histórico para {symbol}...")
         
         # 1. Descargar (REST)
-        history: List[Candle] = rest_client.get_historical_candles(symbol, interval="1m", limit=1000)
+        history: List[Candle] = rest_client.get_historical_candles(symbol, interval="1m", start_str=start_date)
         
         # 2. Persistir (SQL) - "Cold Path" (se hace una vez al inicio)
         if history:

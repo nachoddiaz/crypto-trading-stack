@@ -12,11 +12,13 @@ from src.core.strategies.math_numba import backtest_ma_crossover, backtest_momen
 
 PARAMS_FILE = os.path.join(os.path.dirname(__file__), '../src/config/strategy_params.json')
 
+start_date = "2023-01-01"
+
 def get_data(symbol):
     client = BinanceRest()
     # Descargamos suficientes datos (ej. 1000 velas de 1m)
     print(f"📥 Descargando datos para {symbol}...")
-    candles = client.get_historical_candles(symbol, "1m", limit=1000)
+    candles = client.get_historical_candles(symbol, "1h", start_str=start_date)
     
     # Extraer numpy arrays (Golden Rule: Typed Arrays)
     opens = np.array([c.open for c in candles], dtype=np.float64)

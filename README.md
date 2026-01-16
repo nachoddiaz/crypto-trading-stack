@@ -256,9 +256,6 @@ Creo un integration test que hace mocks para datos y estrategias y ejecuta el tr
     4. Matemático ($Q^*$): "¿El tamaño de la apuesta es lógico?" ✅ SÍ
     5. Risk Manager: "¿Es seguro para la cuenta?" ✅ SÍ
 
-#################################
-####### Hay que meter reservatino price en la base de datos RESTAPI
-
 
 ----------------------------------------------------------------------------------------------------------------------------------
 API vía FastAPI
@@ -273,3 +270,16 @@ instalo fastapi, uvicorn y pydantic
 Debo modificar el script repository.py para que pueda leer de la BBDD las velas descargadas via rest API,  los trades ejecutados y las métricas
 
 
+#################################
+####### Hay que meter reservation price en la base de datos RESTAPI
+####### 
+
+----------------------------------------------------------------------------------------------------------------------------------
+Necesidades auxiliares
+----------------------------------------------------------------------------------------------------------------------------------
+Hay que descargar más datos via RestAPI para mayor poder de backtesting mientras -> necesidad de manejo errores HTTP 418 y 429:
+    418: "Soy una tetera" Originalmente es una broma del protocolo HTTP ("Soy una tetera, no puedo hacer café"), pero Binance lo usa para indicar un Baneo de IP Automático.
+    429: Demasiadas request -> introducir pausas en mi bucle de forma inteligente -> leer el header "retry-after" ya que Binance indicará cuanto tiempo debo esperar.
+    
+Modifico el script binance_rest introduciendo el método "_make_request" para saber cuando realizar peticiones y manejar los errores HTTP 418 y 429.
+    

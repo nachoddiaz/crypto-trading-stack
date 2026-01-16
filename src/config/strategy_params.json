@@ -1,12 +1,12 @@
 {
     "BTCUSDT": {
         "MA_CROSS": {
-            "fast": 19,
-            "slow": 50
+            "fast": 17,
+            "slow": 100
         },
         "MOMENTUM": {
-            "period": 10,
-            "threshold": 0.005
+            "period": 12,
+            "threshold": 0.01
         },
         "CANDLE_ENGULF": {
             "trend_ema": 20
@@ -14,38 +14,38 @@
     },
     "ETHUSDT": {
         "MA_CROSS": {
-            "fast": 19,
-            "slow": 180
+            "fast": 9,
+            "slow": 70
         },
         "MOMENTUM": {
-            "period": 10,
+            "period": 12,
             "threshold": 0.01
         },
         "CANDLE_ENGULF": {
-            "trend_ema": 180
+            "trend_ema": 80
         }
     },
     "BNBUSDT": {
         "MA_CROSS": {
-            "fast": 19,
-            "slow": 160
+            "fast": 12,
+            "slow": 170
         },
         "MOMENTUM": {
-            "period": 10,
-            "threshold": 0.005
+            "period": 16,
+            "threshold": 0.01
         },
         "CANDLE_ENGULF": {
-            "trend_ema": 160
+            "trend_ema": 120
         }
     },
     "SOLUSDT": {
         "MA_CROSS": {
-            "fast": 2,
-            "slow": 50
+            "fast": 6,
+            "slow": 20
         },
         "MOMENTUM": {
-            "period": 14,
-            "threshold": 0.001
+            "period": 10,
+            "threshold": 0.01
         },
         "CANDLE_ENGULF": {
             "trend_ema": 40
@@ -53,28 +53,28 @@
     },
     "ADAUSDT": {
         "MA_CROSS": {
-            "fast": 2,
-            "slow": 20
+            "fast": 10,
+            "slow": 70
         },
         "MOMENTUM": {
-            "period": 14,
-            "threshold": 0.001
+            "period": 16,
+            "threshold": 0.005
         },
         "CANDLE_ENGULF": {
-            "trend_ema": 40
+            "trend_ema": 140
         }
     },
     "XRPUSDT": {
         "MA_CROSS": {
-            "fast": 18,
-            "slow": 50
+            "fast": 9,
+            "slow": 20
         },
         "MOMENTUM": {
-            "period": 10,
-            "threshold": 0.001
+            "period": 16,
+            "threshold": 0.01
         },
         "CANDLE_ENGULF": {
-            "trend_ema": 40
+            "trend_ema": 20
         }
     }
 }
