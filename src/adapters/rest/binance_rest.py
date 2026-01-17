@@ -131,11 +131,3 @@ class BinanceRest:
 
         logger.info(f"✅ Descarga completada. Total velas: {len(all_candles)}")
         return all_candles
-
-# --- Bloque de prueba (solo se ejecuta si corres este script directamente) ---
-if __name__ == "__main__":
-    client = BinanceRest()
-    # Ejemplo: Descargar datos desde 2023 hasta hoy
-    history = client.get_historical_candles("BTCUSDT", "1h", start_str="2023-01-01")
-    print(f"Primera vela: {history[0].timestamp}")
-    print(f"Última vela: {history[-1].timestamp}")

@@ -282,4 +282,23 @@ Hay que descargar más datos via RestAPI para mayor poder de backtesting mientra
     429: Demasiadas request -> introducir pausas en mi bucle de forma inteligente -> leer el header "retry-after" ya que Binance indicará cuanto tiempo debo esperar.
     
 Modifico el script binance_rest introduciendo el método "_make_request" para saber cuando realizar peticiones y manejar los errores HTTP 418 y 429.
+
+Así mismo necesito usar tenacity (facilita lógica de reintentos en conexiones inestables como el socket) para mejorar el exponential backoff del socket. Para ello introduzco el decorador @retry con estrategia de espera exponencial y triggers para connectionClosed, Error de interntet o timeout del socket.
+
+modifico websockets.connect(uri) introduciendo ping_interval y ping_timeout para detectar la conexión perdida.
+Para testear la correcta funcionalidad de estas nuevas funciones, ejecuto mi script ingestor.py, dejo que baje datos via REST, dejo que baje algunos datos via socket y desconecto el wifi para probar la funcionalidad del reintentos salen los siguientes prints- >⚡ Procesados 1000 ticks... (Último: BTCUSDT)
+⚠️ Conexión perdida. Reintentando en 1.0s... (Intento #1)
+Concenctando a Binance para 10: ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'BNBUSDT', 'SOLUSDT', 'TRXUSDT', 'DOGEUSDT', 'ADAUSDT', 'LINKUSDT', 'DOTUSDT']
+⚠️ Conexión perdida. Reintentando en 2.0s... (Intento #2)
+Concenctando a Binance para 10: ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'BNBUSDT', 'SOLUSDT', 'TRXUSDT', 'DOGEUSDT', 'ADAUSDT', 'LINKUSDT', 'DOTUSDT']
+⚠️ Conexión perdida. Reintentando en 4.0s... (Intento #3)
+-> Aquí reconecto el Wifi
+Concenctando a Binance para 10: ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'BNBUSDT', 'SOLUSDT', 'TRXUSDT', 'DOGEUSDT', 'ADAUSDT', 'LINKUSDT', 'DOTUSDT']
+✅ Conectado. Esperando datos...
+⚡ Procesados 100 ticks... (Último: BTCUSDT)
+⚡ Procesados 200 ticks... (Último: LINKUSDT)
+
+Fucniona Ok
+
+
     

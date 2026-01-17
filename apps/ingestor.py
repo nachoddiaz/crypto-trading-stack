@@ -37,7 +37,7 @@ async def main():
         print(f"📥 Descargando histórico para {symbol}...")
         
         # 1. Descargar (REST)
-        history: List[Candle] = rest_client.get_historical_candles(symbol, interval="1m", start_str=start_date)
+        history: List[Candle] = rest_client.get_historical_candles(symbol, interval="1h", start_str=start_date)
         
         # 2. Persistir (SQL) - "Cold Path" (se hace una vez al inicio)
         if history:

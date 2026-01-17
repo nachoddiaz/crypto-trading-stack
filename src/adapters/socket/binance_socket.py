@@ -4,11 +4,21 @@ import json
 import time
 from collections import defaultdict
 from typing import Optional, List
+from tenacity import (
+    retry,
+    wait_exponential,
+    stop_never,
+    retry_if_exception_type,
+    before_sleep_log
+)
+import logging
 
 # Imports internos
 from src.interfaces.data_provider import ExchangeDrivers
 from src.core.models import Registro
 
+# Configuración básica de logging para ver los reintentos
+logger = logging.getLogger(__name__)
 
 #Aseguro monotonizidad
 class DataGuard:
@@ -23,7 +33,7 @@ class DataGuard:
         Retorna True si debes procesarlo, False si debes ignorarlo.
         Esperamos el dict crudo del socket de Binance bookTicker.
         """
-        # CASO 1: Primer tick del sistema (Arranque)
+        #Primer tick del sistema (Arranque)
         if self._last_state is None:
             self._last_state = new_tick
             return True
@@ -61,6 +71,21 @@ class DataGuard:
 
 
 class BinanceDriver(ExchangeDrivers):
+
+    def _log_retry(retry_state):
+        print(f"⚠️ Conexión perdida. Reintentando en {retry_state.next_action.sleep}s... (Intento #{retry_state.attempt_number})")
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        stop=stop_never,
+        retry=retry_if_exception_type((
+            websockets.ConnectionClosed,
+            OSError,
+            asyncio.TimeoutError,
+            websockets.exceptions.WebSocketException
+        )),
+        before_sleep=_log_retry
+    )
     async def subscribe(self, symbols: list[str]):
         #con depth me traigo el libro de precios, usamos bookTicker para traer el precio de la orden
         streams = "/".join([f"{s.lower()}@bookTicker" for s in symbols])
@@ -69,9 +94,9 @@ class BinanceDriver(ExchangeDrivers):
 
         #Guardo el estado
         guards = defaultdict(DataGuard)
-        msg_counter = 0  # <--- 1. INICIALIZAR CONTADOR
+        msg_counter = 0 
 
-        async with websockets.connect(uri) as websocket:
+        async with websockets.connect(uri, ping_interval=2, ping_timeout=2) as websocket:
             print("✅ Conectado. Esperando datos...") # <--- Confirmación visual
             
             async for msg in websocket:
