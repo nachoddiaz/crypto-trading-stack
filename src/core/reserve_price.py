@@ -7,7 +7,7 @@ from src.core.data_persister import DataPersister
 
 #Clase que calcula el reservation price para cada symbol
 class ReservePrice:
-    def __init__(self, symbol:str, gamma = 0.5, lambda_ = 0.94,  ):
+    def __init__(self, symbol:str, gamma = 0.5, lambda_ = 0.94):
         self.symbol = symbol
         self.gamma = gamma
         self.lambda_ = lambda_

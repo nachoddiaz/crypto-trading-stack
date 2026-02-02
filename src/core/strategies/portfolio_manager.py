@@ -13,7 +13,7 @@ from src.core.market_state import MarketState
 from src.core.strategies.implementations import MACrossover, MomentumStrategy, EngulfingPattern
 
 # Ruta al archivo generado por el optimizer.py
-PARAMS_FILE = os.path.join(os.path.dirname(__file__), '../config/strategy_params.json')
+PARAMS_FILE = os.path.join(os.path.dirname(__file__), '../../config/strategy_params.json')
 
 class PortfolioManager:
     def __init__(self, symbols: List[str]):

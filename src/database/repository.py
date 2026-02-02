@@ -7,7 +7,7 @@ from sqlalchemy.future import select
 from sqlalchemy import desc
 
 #Imports internos
-from .sql_models import Base, TickSQL, CandleSQL
+from .sql_models import Base, TickSQL, CandleSQL, TradeSQL
 from src.core.models import Candle
 
 
@@ -93,7 +93,9 @@ class AsyncRepository:
                         low=c.low,
                         close=c.close,
                         volume=c.volume,
-                        closed=c.closed
+                        closed=c.closed,
+                        volatility=c.volatility,
+                        reservation_price_neutral=c.reservation_price_neutral
                     ) for c in candles
                 ]
                 session.add_all(sql_objects)
@@ -101,21 +103,62 @@ class AsyncRepository:
             print(f"💾 Persistidas {len(sql_objects)} velas para {symbol}.")
 
     async def get_recent_candles(self, symbol: str, limit: int = 1000):
-        """Recupera velas históricas para el gráfico"""
-        query = """
-            SELECT time, open, high, low, close, volume 
-            FROM candles 
-            WHERE symbol = $1 
-            ORDER BY time DESC 
-            LIMIT $2
-        """
-        rows = await self.db_pool.fetch(query, symbol, limit)
-        # Invertimos para que el frontend reciba cronológico (viejo -> nuevo)
-        return list(reversed(rows))
+        """Recupera velas para el gráfico y la estrategia."""
+        async with self.async_session() as session:
+            # Usamos ORM de SQLAlchemy en vez de SQL crudo
+            stmt = (
+                select(CandleSQL)
+                .filter(CandleSQL.symbol == symbol)
+                .order_by(desc(CandleSQL.timestamp))
+                .limit(limit)
+            )
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+            
+            # Devolvemos en orden cronológico (viejo -> nuevo)
+            return list(reversed(rows))
+
+    async def save_trade(self, trade_dict: Dict[str, Any]):
+        """Guarda un trade individual ejecutado por el Engine."""
+        async with self.async_session() as session:
+            async with session.begin():
+                trade_obj = TradeSQL(
+                    symbol=trade_dict['symbol'],
+                    timestamp=trade_dict['timestamp'],
+                    side=trade_dict['side'],
+                    price=trade_dict['price'],
+                    qty=trade_dict['qty'],
+                    total_usdt=trade_dict['total_usdt'],
+                    edge_delta=trade_dict.get('edge_delta'),
+                    q_optimal_theory=trade_dict.get('q_optimal_theory')
+                )
+                session.add(trade_obj)
+            # Commit automático al salir
+            print(f"💰 Trade guardado en DB: {trade_dict['side']} {trade_dict['symbol']}")
 
     async def get_trades(self, limit: int = 100):
-        """Recupera el historial de trades ejecutados"""
-        # Asumiendo que tienes una tabla 'trades'. Si no, créala o usa redis.
-        # Si guardas trades en JSON en una columna, adáptalo.
-        query = "SELECT * FROM trades ORDER BY time DESC LIMIT $1"
-        return await self.db_pool.fetch(query, limit)
+        """Recupera el historial de trades para la API."""
+        async with self.async_session() as session:
+            # Usamos la sintaxis moderna de SQLAlchemy 1.4+ / 2.0
+            stmt = (
+                select(TradeSQL)
+                .order_by(desc(TradeSQL.timestamp))
+                .limit(limit)
+            )
+            result = await session.execute(stmt)
+            trades = result.scalars().all()
+            
+            # Convertimos a diccionario para que Pydantic (API) lo lea fácil
+            return [
+                {
+                    "timestamp": t.timestamp,
+                    "symbol": t.symbol,
+                    "side": t.side,
+                    "price": t.price,
+                    "qty": t.qty,
+                    "total_usdt": t.total_usdt,
+                    "edge_delta": t.edge_delta,
+                    "q_optimal_theory": t.q_optimal_theory
+                }
+                for t in trades
+            ]

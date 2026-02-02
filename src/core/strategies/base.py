@@ -1,5 +1,5 @@
 import time
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, ABCMeta
 import numpy as np
 from typing import Dict, Any
 
@@ -27,15 +27,19 @@ def measure_latency(func):
     return wrapper
 
 # --- METACLASE: Validación de Arquitectura ---
-class StrategyMeta(type):
+class StrategyMeta(ABCMeta):
     """
     Fuerza que todas las estrategias definan un 'ID' único y sigan las reglas del sistema.
     Esto evita errores humanos al crear nuevas estrategias.
     """
     def __new__(cls, name, bases, dct):
         # Ignoramos la clase base abstracta para evitar recursión infinita
+
+        # 1. Creamos la clase usando la lógica de ABC (para soportar abstractmethod)
+        new_class = super().__new__(cls, name, bases, dct)
+        
         if name == "BaseStrategy":
-            return super().__new__(cls, name, bases, dct)
+            return new_class
         
         # Validación 1: Existencia de ID
         if "ID" not in dct:
@@ -46,7 +50,7 @@ class StrategyMeta(type):
         if not isinstance(strategy_id, str) or not strategy_id.isupper():
             raise ValueError(f"❌ Convención: El ID '{strategy_id}' en '{name}' debe ser un string en MAYÚSCULAS.")
 
-        return super().__new__(cls, name, bases, dct)
+        return new_class
 
 # --- CLASE BASE ABSTRACTA ---
 class BaseStrategy(ABC, metaclass=StrategyMeta):
@@ -58,7 +62,7 @@ class BaseStrategy(ABC, metaclass=StrategyMeta):
         pass
 
     @abstractmethod
-    def calculate(self, closes: np.ndarray, opens: np.ndarray, highs: np.ndarray, lows: np.ndarray) -> int:
+    def calculate(self, closes: np.ndarray, opens: np.ndarray, highs: np.ndarray, lows: np.ndarray, *args, **kwargs) -> int:
         """
         Método principal que debe implementar la lógica (preferiblemente usando Numba).
         Retorna: 1 (Compra), -1 (Venta), 0 (Neutro)

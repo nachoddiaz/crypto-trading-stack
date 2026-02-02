@@ -67,6 +67,8 @@ class CandleSQL(Base):
     
     # Flag útil para saber si la vela es final o si (en un futuro) guardas snapshots parciales
     closed = Column(Boolean, default=True)
+    volatility = Column(Float, nullable=True)
+    reservation_price_neutral = Column(Float, nullable=True)
 
     # Índice compuesto para buscar rápidamente velas de un par en un rango de fecha
     __table_args__ = (
@@ -75,3 +77,27 @@ class CandleSQL(Base):
 
     def __repr__(self):
         return f"<CandleSQL(symbol='{self.symbol}', time={self.timestamp}, close={self.close})>"
+
+
+class TradeSQL(Base):
+    """
+    Registro histórico de ejecuciones (Trades).
+    """
+    __tablename__ = 'trades'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(String(20), nullable=False, index=True)
+    timestamp = Column(Float, nullable=False, index=True) # Unix timestamp
+    
+    side = Column(String(4), nullable=False) # "BUY" o "SELL"
+    price = Column(Float, nullable=False)
+    qty = Column(Float, nullable=False)
+    total_usdt = Column(Float, nullable=False)
+    
+    # Métricas de calidad de ejecución (Opcionales pero recomendadas)
+    edge_delta = Column(Float, nullable=True)
+    q_optimal_theory = Column(Float, nullable=True)
+    pnl_realized = Column(Float, nullable=True)
+
+    def __repr__(self):
+        return f"<TradeSQL({self.symbol}, {self.side}, {self.qty} @ {self.price})>"

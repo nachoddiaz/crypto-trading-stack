@@ -270,9 +270,6 @@ instalo fastapi, uvicorn y pydantic
 Debo modificar el script repository.py para que pueda leer de la BBDD las velas descargadas via rest API,  los trades ejecutados y las métricas
 
 
-#################################
-####### Hay que meter reservation price en la base de datos RESTAPI
-####### 
 
 ----------------------------------------------------------------------------------------------------------------------------------
 Necesidades auxiliares
@@ -298,7 +295,23 @@ Concenctando a Binance para 10: ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'BNBUSDT', 'SO
 ⚡ Procesados 100 ticks... (Último: BTCUSDT)
 ⚡ Procesados 200 ticks... (Último: LINKUSDT)
 
-Fucniona Ok
+Funciona Ok
+
+#################################
+Necesito meter reservation price en la base de datos RESTAPI para poder realizar las estrategias con una unica fuente de verdad
+#################################
+Modifico los scripts de la carpeta database y el script de models, introduciendo la volatilidad y el precio de reserva en la tabla de velas.
+Cuando meto cmpos nuevos en las BBDD ,ecesito volver a crear los contenedores: docker-compose down -v && docker-compose up -d
+
+
+modifico el script ingestor.py para configurar todos los simbolos a la vez evitando bucles for y usando asyncio.gather para paralelizar la carga de datos.
+
+
+Necesito un script que coordine la ingesta de datos via socket acumulando datos cada minuto, no calcular estrategias hasta no tener la vela cerrada y el encargado de llamar a la bbdd cuando ocurra un trade.
+
+Creo el método add_candle en market_state.py para agregar las velas cerradas cada minuto 
+
+Mi docker no encuentra el archivo con lo parámetros de cada estrategia, añado el volumen de código a mi docker-compose.yaml
 
 
     

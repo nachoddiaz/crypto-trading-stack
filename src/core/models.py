@@ -1,10 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 
-@dataclass
+@dataclass(slots=True)
 class Registro:
-    # Usamos __slots__ para reducir memoria y acelerar acceso (Golden Rule)
-    __slots__ = ['exchange', 'symbol', 'time', 'bid_price', 'bid_quantity', 'ask_price', 'ask_quantity']
-    
+    # Usamos slots=True para reducir memoria y acelerar acceso (Golden Rule)
     exchange: str
     symbol: str
     time: float
@@ -26,10 +25,8 @@ class Registro:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class Candle:
-    __slots__ = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'closed']
-    
     timestamp: float # Unix timestamp (ms o s)
     open: float
     high: float
@@ -37,6 +34,8 @@ class Candle:
     close: float
     volume: float
     closed: bool # Flag para saber si es inmutable
+    volatility: Optional[float] = field(default=None)
+    reservation_price_neutral: Optional[float] = field(default=None)
 
     def __lt__(self, other):
         if not isinstance(other, Candle):

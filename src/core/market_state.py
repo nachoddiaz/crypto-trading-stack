@@ -59,6 +59,12 @@ class MarketState:
         self.current_candle.closed = True
         self.closed_candles.append(self.current_candle) # O(1)
 
+    def add_candle(self, candle: Candle):
+        """
+        Agrega una vela cerrada externamente (desde BBDD o RealTimeProcessor).
+        """
+        self.closed_candles.append(candle)
+    
     def _start_new_candle(self, tick: Registro):
         """Reinicia el objeto vela actual (evitamos allocar si podemos reusar, pero por claridad creamos nuevo)"""
         # Para cumplir strict golden rules, podríamos tener 2 objetos y hacer swap, 
@@ -86,3 +92,26 @@ class MarketState:
         if self.current_candle:
              closes = np.append(closes, self.current_candle.close)
         return closes
+
+    def get_ohlc_arrays(self):
+        """
+        Devuelve las 4 series OHLC como arrays numpy para estrategias que necesitan
+        más que solo closes (ej: patrones de velas, volatilidad).
+        """
+        data = list(self.closed_candles)
+        if not data:
+            return None, None, None, None
+        
+        opens = np.array([c.open for c in data], dtype=np.float64)
+        highs = np.array([c.high for c in data], dtype=np.float64)
+        lows = np.array([c.low for c in data], dtype=np.float64)
+        closes = np.array([c.close for c in data], dtype=np.float64)
+        
+        # Añadimos la vela actual "live" al final
+        if self.current_candle:
+            opens = np.append(opens, self.current_candle.open)
+            highs = np.append(highs, self.current_candle.high)
+            lows = np.append(lows, self.current_candle.low)
+            closes = np.append(closes, self.current_candle.close)
+        
+        return opens, highs, lows, closes
