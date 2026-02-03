@@ -1,13 +1,14 @@
-// TradingView Lightweight Charts - Candlestick Component
+// TradingView Lightweight Charts - Candlestick Component with Trade Markers
 import { useEffect, useRef } from 'react'
-import { createChart, IChartApi, ISeriesApi, CandlestickData, Time } from 'lightweight-charts'
-import { Candle } from '../../domain/types'
+import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, SeriesMarker } from 'lightweight-charts'
+import { Candle, Trade } from '../../domain/types'
 
 interface Props {
     candles: Candle[]
+    trades?: Trade[]
 }
 
-export default function CandlestickChart({ candles }: Props) {
+export default function CandlestickChart({ candles, trades = [] }: Props) {
     const containerRef = useRef<HTMLDivElement>(null)
     const chartRef = useRef<IChartApi | null>(null)
     const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
@@ -56,11 +57,10 @@ export default function CandlestickChart({ candles }: Props) {
         if (!seriesRef.current || candles.length === 0) return
 
         // Convertir timestamps a formato TradingView
-        // Ordenar por tiempo y eliminar duplicados (lightweight-charts requiere tiempos únicos ascendentes)
         const seen = new Set<number>()
         const data: CandlestickData<Time>[] = candles
             .map(c => ({
-                time: Math.floor(c.timestamp / 1000) as Time, // De ms a segundos
+                time: Math.floor(c.timestamp / 1000) as Time,
                 open: c.open,
                 high: c.high,
                 low: c.low,
@@ -79,6 +79,25 @@ export default function CandlestickChart({ candles }: Props) {
             chartRef.current?.timeScale().fitContent()
         }
     }, [candles])
+
+    // Actualizar marcadores cuando cambian los trades
+    useEffect(() => {
+        if (!seriesRef.current || trades.length === 0) return
+
+        // Crear marcadores de compra/venta
+        const markers: SeriesMarker<Time>[] = trades.map(trade => ({
+            time: Math.floor(trade.timestamp / 1000) as Time,
+            position: trade.side === 'BUY' ? 'belowBar' : 'aboveBar',
+            color: trade.side === 'BUY' ? '#3fb950' : '#f85149',
+            shape: trade.side === 'BUY' ? 'arrowUp' : 'arrowDown',
+            text: `${trade.side} ${trade.qty.toFixed(4)}`,
+        }))
+
+        // Ordenar marcadores por tiempo (requerido por lightweight-charts)
+        markers.sort((a, b) => (a.time as number) - (b.time as number))
+
+        seriesRef.current.setMarkers(markers)
+    }, [trades])
 
     // Resize handler
     useEffect(() => {

@@ -108,6 +108,16 @@ async def main():
             # Validación rápida
             sym = tick_dict.get('symbol')
             
+            # --- PUBLICAR A PUB/SUB PARA WEBSOCKETS ---
+            # Esto permite broadcasting en tiempo real a todos los clientes conectados
+            asyncio.create_task(bus.publish({
+                "type": "TICK",
+                "symbol": sym,
+                "bid_price": tick_dict.get('bid_price'),
+                "ask_price": tick_dict.get('ask_price'),
+                "timestamp": tick_dict.get('time')
+            }))
+            
             # --- ROUTING SIN BUCLES ---
             # O(1) Lookup: Buscamos el procesador directamente por la clave
             if sym in processors:

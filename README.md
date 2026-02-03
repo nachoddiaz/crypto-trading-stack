@@ -347,3 +347,8 @@ Creo una layout tal que:
 
 ##########
 Creo el script start.sh para levantar todo el sistema con un solo comando
+
+
+Ingestor → Redis Stream → Persister → PostgreSQL
+     ↓
+Redis Pub/Sub (canal separado) → API WebSocket → Frontend
