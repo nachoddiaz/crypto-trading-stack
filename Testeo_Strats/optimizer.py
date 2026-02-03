@@ -12,13 +12,13 @@ from src.core.strategies.math_numba import backtest_ma_crossover, backtest_momen
 
 PARAMS_FILE = os.path.join(os.path.dirname(__file__), '../src/config/strategy_params.json')
 
-start_date = "2023-01-01"
+start_date = "2026-01-01"
 
 def get_data(symbol):
     client = BinanceRest()
     # Descargamos suficientes datos (ej. 1000 velas de 1m)
     print(f"📥 Descargando datos para {symbol}...")
-    candles = client.get_historical_candles(symbol, "1h", start_str=start_date)
+    candles = client.get_historical_candles(symbol, "1m", start_str=start_date)
     
     # Extraer numpy arrays (Golden Rule: Typed Arrays)
     opens = np.array([c.open for c in candles], dtype=np.float64)
@@ -70,7 +70,7 @@ def optimize_pattern(opens, highs, lows, closes):
     return {"trend_ema": int(best_params[0]), "pnl": float(best_pnl)}
 
 def main():
-    targets = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "ADAUSDT", "XRPUSDT"] # Tu lista real
+    targets =  ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "ADAUSDT", "LINKUSDT", "DOTUSDT"]
     
     final_config = {}
 
