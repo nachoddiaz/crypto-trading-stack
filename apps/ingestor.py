@@ -35,7 +35,7 @@ async def setup_symbol(symbol: str, repo: AsyncRepository, rest_client: BinanceR
     # 2. Descarga Histórica (Cold Path)
     try:
         print(f"📥 Descargando histórico {symbol}...")
-        history: List[Candle] = rest_client.get_historical_candles(symbol, interval="1h", start_str=start_date)
+        history: List[Candle] = rest_client.get_historical_candles(symbol, interval="1m", start_str=start_date)
         
         if history:
             market_state.initialize_history(history)
@@ -64,7 +64,7 @@ async def main():
     bus = RedisBus(stream_key="binance_ticks")
     exchange_name = "binance"
     target_symbols  = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "ADAUSDT", "LINKUSDT", "DOTUSDT"] #"HYPEUSDT"]
-    start_date = "2026-01-01"
+    start_date = "2026-02-01"
 
     # 1. Inicialización de Estrategias y Estado
     market_states = {}

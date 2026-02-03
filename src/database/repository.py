@@ -162,3 +162,16 @@ class AsyncRepository:
                 }
                 for t in trades
             ]
+
+    async def get_recent_ticks(self, symbol: str, limit: int = 500):
+        """Recupera ticks recientes para el gráfico de bid/ask."""
+        async with self.async_session() as session:
+            stmt = (
+                select(TickSQL)
+                .filter(TickSQL.symbol == symbol)
+                .order_by(desc(TickSQL.exchange_time))
+                .limit(limit)
+            )
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+            return list(reversed(rows))

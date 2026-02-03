@@ -30,3 +30,30 @@ services:
     restart: always
     ports:
       - "6379:6379"
+
+#--- API Backend (FastAPI) ---
+  api:
+    build: .
+    container_name: trading_api
+    restart: always
+    #command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@timescaledb:5432/postgres_db
+      - REDIS_HOST=redis
+    depends_on:
+      - timescaledb
+      - redis
+
+#--- Frontend (React + Nginx) ---
+  frontend:
+    build: ./frontend
+    container_name: trading_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - api

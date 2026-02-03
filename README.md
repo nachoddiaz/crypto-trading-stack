@@ -269,7 +269,10 @@ instalo fastapi, uvicorn y pydantic
 
 Debo modificar el script repository.py para que pueda leer de la BBDD las velas descargadas via rest API,  los trades ejecutados y las métricas
 
+Para poder levantar la API, necesito teenr un Dockerfile, para ello lo enlazo con uv ya que es el dependency manager que estoy usando
+Comando: docker-compose up -d --build api.
 
+Luego continuo con el desarrollo de la API
 
 ----------------------------------------------------------------------------------------------------------------------------------
 Necesidades auxiliares
@@ -313,5 +316,34 @@ Creo el método add_candle en market_state.py para agregar las velas cerradas ca
 
 Mi docker no encuentra el archivo con lo parámetros de cada estrategia, añado el volumen de código a mi docker-compose.yaml
 
+#############################
+Sigo con la creación de endpoints de la API
+#############################
 
-    
+En routes.py accedo a los atributos de las velas, creo endpoint para identificar los simbolos disponibles (get_symbols), para obtener las pnl (get_pnl) y posiciones (get_positions)
+
+
+#####################################
+Creación del front end via React Vite
+#####################################
+
+Con npx -y create-vite@latest creo el proyecto en la carpeta frontend con el package.json, vite.config.js, index.html, el directorio src y un componente App.jsx
+
+Una vez creados los endpoints, utilizo librerías de TradgingView
+
+Creo una layout tal que: 
+┌────────────────────────────────────────┐
+│              HEADER                    │
+├──────────────────┬─────────────────────┤
+│  Bid/Ask Chart   │  Candlestick Chart  │
+│  (evolución)     │  (minutos)          │
+├──────────────────┴─────────────────────┤
+│           TRADES TABLE                 │
+├────────────────────────────────────────┤
+│           METRICS (PnL Cards)          │
+└────────────────────────────────────────┘
+
+
+
+##########
+Creo el script start.sh para levantar todo el sistema con un solo comando

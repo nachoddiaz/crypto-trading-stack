@@ -1,0 +1,21 @@
+# --- Bases de Datos y Volúmenes (CRÍTICO) ---
+mongo_data/
+timescale_data/
+redis_data/
+
+# --- Git y Entornos Virtuales ---
+.git/
+.gitignore
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+
+# --- Archivos de Configuración Local o Secretos ---
+.env
+docker-compose.yml
+README.md
+Dockerfile
+.dockerignore
