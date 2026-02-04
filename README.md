@@ -1,3 +1,5 @@
+Documentación posteriormente creada con Sphinx
+
 En primer lugar creo la estructura del proyecto
 Creación del entorno virtual
 Creación del directorio Justificaciones_Uso donde explicaré los pros y contras de cada tecnología así como la decisión tomada
