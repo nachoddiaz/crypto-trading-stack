@@ -441,9 +441,14 @@ Requerimientos Excelencia
     cProfile: más básico, viene integrado en python
     py-spy: para procesos en vivo, se pueden generar flamegraphs. En este caso, vemos que se gasta bastante tiempo para importar librerías y a la inicialización de módulos
     scalene: para línea por línea
+
+
+6. OpenTelemetry
+    Sigue el recorrido de una petición a ttravés de todo el sistema, mide latencias y permite correlacionar logs con traces.
+    En nuestro caso podeos usarla para medir diferencias entre Event time e Ingestion time
     
 
-6. CI/CD
+7. CI/CD
     Ya tengo docker-compose, lo he ido haciendo con el proyecto, me falta el script de terraform para desplegarlo en AWS.
     Defino los requisitos: suficiente ram como para correr PostgreSQL, Redis, la API y el fron. 
     Defino los bloques minimos: 
@@ -795,3 +800,87 @@ def test_reproducibility():
     assert result_1.trades == result_2.trades
     assert result_1.final_pnl == result_2.final_pnl
 ```
+
+
+
+
+### Flujo de Información Detallado
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           INGESTA DE DATOS                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Binance REST ──► BinanceRest ──► Candle[] ──► MarketState (histórico)     │
+│  Binance WS   ──► BinanceDriver ──► DataGuard ──► Redis Stream             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          PROCESAMIENTO                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Redis ──► Persister ──► MarketState.update() ──► Candle actual            │
+│                              │                                               │
+│                              ▼                                               │
+│                    ReservePrice.calculate()                                  │
+│                              │                                               │
+│                              ▼                                               │
+│              ┌───────────────┼───────────────┐                              │
+│              ▼               ▼               ▼                              │
+│        MACrossStrategy  MomentumStrategy  CandlePattern                     │
+│              │               │               │                              │
+│              └───────────────┼───────────────┘                              │
+│                              ▼                                               │
+│                    PortfolioManager.evaluate()                              │
+│                              │                                               │
+│                              ▼                                               │
+│                    TraderEngine.execute()                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          PERSISTENCIA                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  TraderEngine ──► PostgreSQL (trades, candles)                              │
+│  TraderEngine ──► Redis Pub/Sub (estado en tiempo real)                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              API                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  FastAPI                                                                     │
+│    ├── GET /candles/{symbol} ──► PostgreSQL                                 │
+│    ├── GET /trades ──► PostgreSQL                                           │
+│    ├── GET /positions ──► Redis                                             │
+│    ├── GET /pnl ──► Redis + PostgreSQL                                      │
+│    └── WS /ws/ticks ──► Redis Pub/Sub                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           FRONTEND                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  React + Vite                                                                │
+│    ├── CandlestickChart ◄── /candles + señales                              │
+│    ├── BidAskChart ◄── WebSocket /ws/ticks                                  │
+│    ├── TradeTable ◄── /trades                                               │
+│    ├── PositionsTable ◄── /positions                                        │
+│    └── PnLCards ◄── /pnl                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Clases Principales y Responsabilidades
+
+| Clase | Responsabilidad | Dunder Methods |
+|-------|-----------------|----------------|
+| `DataGuard` | Filtra duplicados y valida monotonicidad | - |
+| `Registro` | Dataclass para tick del order book | `to_dict()` |
+| `Candle` | Dataclass OHLCV con volatilidad | `__lt__`, `__sub__` |
+| `MarketState` | Buffer de velas históricas + actual | - |
+| `ReservePrice` | Cálculo Avellaneda-Stoikov | - |
+| `StrategyMeta` | Metaclase que valida ID de estrategias | `__new__` |
+| `BaseStrategy` | ABC con `@measure_latency` | - |
+| `PortfolioManager` | Agrega señales de todas las estrategias | - |
+| `TraderEngine` | Ejecuta trades y gestiona riesgo | - |
+
+
+
