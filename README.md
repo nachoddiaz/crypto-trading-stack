@@ -450,7 +450,7 @@ Requerimientos Excelencia
 
 7. CI/CD
     Ya tengo docker-compose, lo he ido haciendo con el proyecto, me falta el script de terraform para desplegarlo en AWS.
-    Defino los requisitos: suficiente ram como para correr PostgreSQL, Redis, la API y el fron. 
+    Defino los requisitos: suficiente ram como para correr PostgreSQL, Redis, la API y el frontend. 
     Defino los bloques minimos: 
         terraform {}     # Versión y providers requeridos
         provider "aws" {} # Configuración del proveedor cloud
