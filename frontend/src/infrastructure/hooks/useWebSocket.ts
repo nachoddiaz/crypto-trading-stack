@@ -19,6 +19,14 @@ export function useWebSocket({ url, onMessage, reconnectInterval = 3000 }: UseWe
     const wsRef = useRef<WebSocket | null>(null)
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
 
+    // Usar ref para el callback para evitar reconexiones cuando cambia
+    const onMessageRef = useRef(onMessage)
+
+    // Actualizar ref cuando cambia el callback
+    useEffect(() => {
+        onMessageRef.current = onMessage
+    }, [onMessage])
+
     const connect = useCallback(() => {
         try {
             const ws = new WebSocket(url)
@@ -32,7 +40,8 @@ export function useWebSocket({ url, onMessage, reconnectInterval = 3000 }: UseWe
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data)
-                    onMessage?.(data)
+                    // Usar ref para obtener siempre la última versión del callback
+                    onMessageRef.current?.(data)
                 } catch (e) {
                     console.error('Error parsing WebSocket message:', e)
                 }
@@ -52,7 +61,7 @@ export function useWebSocket({ url, onMessage, reconnectInterval = 3000 }: UseWe
             console.error('Failed to connect WebSocket:', error)
             reconnectTimeoutRef.current = setTimeout(connect, reconnectInterval)
         }
-    }, [url, onMessage, reconnectInterval])
+    }, [url, reconnectInterval]) // onMessage removido de dependencias
 
     useEffect(() => {
         connect()

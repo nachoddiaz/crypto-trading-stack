@@ -1,5 +1,4 @@
 import asyncio
-import time
 from typing import Optional
 
 # Imports de tus módulos
@@ -16,19 +15,24 @@ class RealTimeProcessor:
                  market_state: MarketState, 
                  engine: TraderEngine, 
                  portfolio_manager: PortfolioManager,
-                 repository: AsyncRepository):
+                 repository: AsyncRepository,
+                 redis_bus=None):  # Bus opcional para publicar trades
         
         self.symbol = symbol
         self.market_state = market_state
         self.engine = engine
         self.pm = portfolio_manager
         self.repository = repository
+        self.redis_bus = redis_bus  # Para publicar trades via WebSocket
 
         self.rp_model = ReservePrice(symbol=symbol)
         
-        # Variables para construir la vela de 1 minuto
+        # Variables para construir la vela de 1 segundo
         self.current_candle: Optional[Candle] = None
-        self.last_minute_processed = -1
+        self.last_second_processed = -1
+        
+        # Contador de velas procesadas para evitar trades en la primera vela
+        self.candles_processed = 0
 
 
 
@@ -36,45 +40,52 @@ class RealTimeProcessor:
         """
         Esta función se llama CADA VEZ que llega un dato del Socket.
         """
-        if tick.symbol != self.symbol: return
+        if tick.symbol != self.symbol: 
+            return
         # 1. Mark-to-Market: Actualizamos el valor de la cartera en tiempo real
         self.engine.update_valuation({self.symbol: tick.bid_price}, tick.time)
 
-        # 2. Lógica de Tiempo: ¿Hemos cambiado de minuto?
+        # 2. Lógica de Tiempo: ¿Hemos cambiado de segundo?
         timestamp_sec = tick.time
-        minute_idx = int(timestamp_sec // 60) # Truco matemático para detectar el minuto
+        second_idx = int(timestamp_sec) # Cada segundo es una vela nueva
 
-        if self.symbol == "BTCUSDT":
-            import datetime
-            # Convertir a hora legible para que TU lo entiendas
-            hora_tick = datetime.datetime.fromtimestamp(timestamp_sec).strftime('%H:%M:%S')
             
-        # --- CAMBIO DE MINUTO (CIERRE DE VELA) ---
-        if self.last_minute_processed != -1 and minute_idx > self.last_minute_processed:
+        # --- CAMBIO DE SEGUNDO (CIERRE DE VELA) ---
+        if self.last_second_processed != -1 and second_idx > self.last_second_processed:
             if self.current_candle:
                 # A. Cerramos la vela
                 self.current_candle.closed = True
-                print(f"🕯️ Cierre de Vela {self.symbol}: {self.current_candle.open} ,{self.current_candle.close}")
+                self.candles_processed += 1
+                # Log solo cada 10 velas para no saturar
+                if self.candles_processed % 10 == 0:
+                    print(f"🕯️ {self.symbol}: Vela #{self.candles_processed} cerrada (O:{self.current_candle.open:.2f} C:{self.current_candle.close:.2f})")
                 
                 # B. Guardamos en memoria (MarketState) para indicadores
                 self.market_state.add_candle(self.current_candle)
                 
                 # C. Guardamos en BBDD (Persistencia)
-                # (Lo lanzamos como tarea aparte para no bloquear)
                 asyncio.create_task(self.repository.save_candles(self.symbol, [self.current_candle]))
                 
-                # D. !!! EJECUTAMOS EL CEREBRO !!!
-                await self._run_strategy_cycle(tick)
+                # D. !!! EJECUTAMOS EL CEREBRO (solo después de warmup WebSocket) !!!
+                # Requerimos mínimo 50 velas WebSocket para que las estrategias tengan datos suficientes
+                WARMUP_CANDLES = 10
+                if self.candles_processed >= WARMUP_CANDLES:
+                    await self._run_strategy_cycle(tick)
+                else:
+                    # Mostrar progreso de warmup
+                    remaining = WARMUP_CANDLES - self.candles_processed
+                    if self.candles_processed == 1 or remaining % 10 == 0:
+                        print(f"⏳ {self.symbol}: Warmup WebSocket {self.candles_processed}/{WARMUP_CANDLES} ({remaining} restantes)")
 
         # --- GESTIÓN DE LA VELA EN CURSO ---
-        if minute_idx > self.last_minute_processed or self.last_minute_processed == -1:
+        if second_idx > self.last_second_processed or self.last_second_processed == -1:
             # Empezamos nueva vela
             self.current_candle = Candle(
-                timestamp=minute_idx * 60 * 1000, 
+                timestamp=second_idx * 1000,  # Timestamp en ms
                 open=tick.bid_price, high=tick.bid_price, low=tick.bid_price, close=tick.bid_price, 
                 volume=0, closed=False
             )
-            self.last_minute_processed = minute_idx
+            self.last_second_processed = second_idx
         else:
             # Actualizamos vela existente
             if self.current_candle:
@@ -88,6 +99,10 @@ class RealTimeProcessor:
         """
         # 1. Preguntamos al PortfolioManager qué hacer
         signal = self.pm.update_signals(self.symbol, self.market_state)
+        
+        # DEBUG: Ver qué señal devuelve la estrategia
+        if self.candles_processed % 10 == 0:  # Cada 10 velas
+            print(f"🔍 DEBUG {self.symbol}: signal={signal}, candles={self.candles_processed}")
         
         if signal == 0:
             return # Nada que hacer
@@ -116,10 +131,29 @@ class RealTimeProcessor:
             volume=10000.0 # Volumen ficticio alto para asegurar liquidez en paper trading
         )
         
-        # 4. PERSISTENCIA DEL TRADE
-        # Si el motor generó un trade nuevo, lo guardamos en SQL
+        # Si el motor generó un trade nuevo, lo guardamos en SQL y publicamos
         current_history = self.engine.get_history_raw()
         if len(current_history) > prev_trades_len:
             new_trade = current_history[-1]
             print(f"🚀 TRADE EJECUTADO: {new_trade['side']} {self.symbol} @ {new_trade['price']}")
             await self.repository.save_trade(new_trade)
+            
+            if self.redis_bus:
+                # Publicar evento de trade para actualización instantánea del frontend
+                trade_event = {
+                    "type": "TRADE",
+                    "symbol": new_trade['symbol'],
+                    "side": new_trade['side'],
+                    "price": new_trade['price'],
+                    "qty": new_trade['qty'],
+                    "timestamp": new_trade['timestamp']
+                }
+                await self.redis_bus.publish(trade_event)
+                
+                # Guardar estado del engine en Redis para posiciones/PnL
+                engine_state = self.engine.to_redis_state()
+                await self.redis_bus.set_engine_state(self.symbol, engine_state)
+                
+                print(f"📡 Trade y estado publicados vía Redis: {new_trade['side']} {self.symbol}")
+            else:
+                print("⚠️ redis_bus no disponible, trade no publicado via WebSocket")

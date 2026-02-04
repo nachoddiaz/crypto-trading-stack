@@ -4,7 +4,8 @@ import pandas as pd
 class StorageParquet:
     def __init__(self, filename='bench_data.parquet'):
         self.filename = filename
-        if os.path.exists(self.filename): os.remove(self.filename)
+        if os.path.exists(self.filename):
+            os.remove(self.filename)
 
     def write(self, data_list):
         # Parquet requiere DataFrames y Append

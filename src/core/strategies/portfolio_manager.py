@@ -1,9 +1,7 @@
 import os
 import json
-import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List
 import sys
 
 # Imports internos
@@ -51,7 +49,6 @@ class PortfolioManager:
             # Parametrización dinámica
             ma_conf = s_conf.get("MA_CROSS", {"fast": 10, "slow": 50})
             mom_conf = s_conf.get("MOMENTUM", {"period": 14, "threshold": 0.001})
-            pat_conf = s_conf.get("CANDLE_ENGULF", {}) # Engulfing no tiene params dinámicos en la clase base por ahora
 
             # Instanciamos las estrategias con los valores del JSON
             self.strategies_map[symbol] = [
@@ -92,8 +89,10 @@ class PortfolioManager:
         # Si es 0 -> NEUTRAL (O mantener anterior, depende de tu perfil de riesgo)
         
         target_signal = 0
-        if final_vote > 0: target_signal = 1
-        elif final_vote < 0: target_signal = -1
+        if final_vote > 0: 
+            target_signal = 1
+        elif final_vote < 0: 
+            target_signal = -1
         
         return target_signal
 
@@ -119,7 +118,8 @@ class PortfolioManager:
         if not isinstance(equity_df.index, pd.DatetimeIndex):
             try:
                 equity_df.index = pd.to_datetime(equity_df.index)
-            except:
+            except Exception as e:
+                print(f"Error detectado: {e}")
                 return metrics # Fallo en datos
         
         equity_df = equity_df.sort_index()
@@ -139,7 +139,8 @@ class PortfolioManager:
                 # Tomamos el último dato disponible antes o en la fecha de corte
                 start_equity = past_data['total_equity'].iloc[-1]
             
-            if start_equity == 0: return 0.0
+            if start_equity == 0: 
+                return 0.0
             return (current_equity - start_equity) / start_equity
 
         # 1. Daily PnL (Desde el cierre de ayer o hace 24h)

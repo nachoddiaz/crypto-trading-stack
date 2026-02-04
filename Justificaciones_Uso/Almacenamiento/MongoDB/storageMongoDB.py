@@ -1,6 +1,4 @@
-import os
 from pymongo import MongoClient
-import pymongo
 
 class StorageMongo:
     def __init__(self, uri):
@@ -23,8 +21,10 @@ class StorageMongo:
                  pass
 
     def get_size(self):
-        if self.col is None: return 0
+        if self.col is None: 
+            return 0
         try:
             return self.db.command("dbstats")['dataSize'] / (1024 * 1024)
-        except:
-             return 0
+        except Exception as e:
+            print(f"Error MongoDB: {e}")
+            return 0

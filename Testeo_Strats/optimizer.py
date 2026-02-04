@@ -34,7 +34,8 @@ def optimize_ma(closes):
     # Grid Search
     # Fast: 5 a 20 / Slow: 30 a 100
     for f, s in product(range(1, 20, 1), range(20, 200, 10)):
-        if 2*f >= s: continue
+        if 2*f >= s: 
+            continue
         pnl = backtest_ma_crossover(closes, f, s)
         if pnl > best_pnl:
             best_pnl = pnl

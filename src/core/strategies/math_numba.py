@@ -7,7 +7,8 @@ from numba import njit
 def backtest_ma_crossover(prices, fast_w, slow_w):
     """Calcula PnL total para un par de medias dado un array de precios."""
     n = len(prices)
-    if n < slow_w: return 0.0
+    if n < slow_w: 
+        return 0.0
     
     # Pre-cálculo de medias usando cumsum para velocidad O(1) en ventana móvil
     cumsum = np.cumsum(prices)
@@ -35,8 +36,10 @@ def backtest_ma_crossover(prices, fast_w, slow_w):
         s_prev = ma_slow[i - 1]
         
         signal = 0
-        if f_prev <= s_prev and f_curr > s_curr: signal = 1   # Golden Cross
-        elif f_prev >= s_prev and f_curr < s_curr: signal = -1 # Death Cross
+        if f_prev <= s_prev and f_curr > s_curr: 
+            signal = 1   # Golden Cross
+        elif f_prev >= s_prev and f_curr < s_curr: 
+            signal = -1 # Death Cross
         
         # Ejecución (Simplificada: Entramos al cierre)
         current_price = prices[idx_price]
@@ -52,11 +55,44 @@ def backtest_ma_crossover(prices, fast_w, slow_w):
             
     return pnl
 
+# --- 1.1 SEÑAL MA CROSSOVER (TIEMPO REAL) ---
+@njit(fastmath=True, cache=True)
+def calc_ma_signal(prices: np.ndarray, fast_w: int, slow_w: int) -> int:
+    """
+    HOT PATH: Calcula señal de cruce de medias SOLO en las últimas 2 velas.
+    Retorna: +1 (comprar), -1 (vender), 0 (neutral)
+    """
+    n = len(prices)
+    if n < slow_w + 1:
+        return 0  # No hay suficientes datos
+    
+    # Calcular MAs usando los últimos datos
+    # MA actual (última vela)
+    fast_ma_curr = np.mean(prices[-fast_w:])
+    slow_ma_curr = np.mean(prices[-slow_w:])
+    
+    # MA anterior (penúltima vela)
+    fast_ma_prev = np.mean(prices[-(fast_w+1):-1])
+    slow_ma_prev = np.mean(prices[-(slow_w+1):-1])
+    
+    # Detección de cruce
+    # Golden Cross: MA rápida cruza ARRIBA de la lenta
+    if fast_ma_prev <= slow_ma_prev and fast_ma_curr > slow_ma_curr:
+        return 1  # BUY
+    
+    # Death Cross: MA rápida cruza ABAJO de la lenta
+    if fast_ma_prev >= slow_ma_prev and fast_ma_curr < slow_ma_curr:
+        return -1  # SELL
+    
+    return 0  # Sin cruce
+
+
 # --- 2. MOMENTUM (Optimizado) ---
 @njit(fastmath=True, nogil=True, cache=True)
 def backtest_momentum(prices, period, threshold):
     n = len(prices)
-    if n <= period: return 0.0
+    if n <= period: 
+        return 0.0
     
     pnl = 0.0
     position = 0.0
@@ -65,13 +101,16 @@ def backtest_momentum(prices, period, threshold):
         curr_price = prices[i]
         prev_price_n = prices[i - period]
         
-        if prev_price_n == 0: continue
+        if prev_price_n == 0: 
+            continue
         
         roc = (curr_price - prev_price_n) / prev_price_n
         
         signal = 0
-        if roc > threshold: signal = 1
-        elif roc < -threshold: signal = -1
+        if roc > threshold: 
+            signal = 1
+        elif roc < -threshold: 
+            signal = -1
         
         # PnL Calculation
         next_price = prices[i+1]
@@ -83,7 +122,34 @@ def backtest_momentum(prices, period, threshold):
             
     return pnl
 
-# --- 3. PATRÓN VELAS (Optimizado) ---
+# --- 2.1 SEÑAL MOMENTUM (TIEMPO REAL) ---
+@njit(fastmath=True, cache=True)
+def calc_momentum_signal(prices: np.ndarray, period: int, threshold: float) -> int:
+    """
+    HOT PATH: Calcula señal de momentum (ROC) en la última vela.
+    Retorna: +1 (comprar), -1 (vender), 0 (neutral)
+    """
+    n = len(prices)
+    if n <= period:
+        return 0  # No hay suficientes datos
+    
+    curr_price = prices[-1]
+    prev_price = prices[-period - 1]
+    
+    if prev_price == 0:
+        return 0
+    
+    # Rate of Change (ROC)
+    roc = (curr_price - prev_price) / prev_price
+    
+    # Señal según umbral
+    if roc > threshold:
+        return 1  # BUY - Momentum alcista fuerte
+    elif roc < -threshold:
+        return -1  # SELL - Momentum bajista fuerte
+    
+    return 0  # Neutral
+
 @njit(fastmath=True, nogil=True, cache=True)
 def backtest_engulfing(opens, highs, lows, closes, trend_ema):
 
@@ -92,7 +158,8 @@ def backtest_engulfing(opens, highs, lows, closes, trend_ema):
     El parámetro a optimizar es la ventana de la tendencia (trend_ema).
     """
     n = len(closes)
-    if n < trend_ema: return 0.0
+    if n < trend_ema: 
+        return 0.0
     
     pnl = 0.0
     position = 0.0
@@ -105,7 +172,8 @@ def backtest_engulfing(opens, highs, lows, closes, trend_ema):
         # Actualizar EMA
         ema = alpha * closes[i] + (1 - alpha) * ema
         
-        if i < 2: continue
+        if i < 2: 
+            continue
         
         # Detección Patrón
         O1, C1 = opens[i-1], closes[i-1]
@@ -151,8 +219,6 @@ def calc_engulfing_signal(opens: np.ndarray, highs: np.ndarray, lows: np.ndarray
     # Vela actual (Signal Candle)
     curr_open = opens[-1]
     curr_close = closes[-1]
-    curr_high = highs[-1]
-    curr_low = lows[-1]
     
     # Vela anterior (Setup Candle)
     prev_open = opens[-2]

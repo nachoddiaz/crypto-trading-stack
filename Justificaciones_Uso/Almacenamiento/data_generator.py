@@ -2,7 +2,6 @@
 import json
 import random
 import time
-from models import Registro
 
 NUM_RECORDS = 10_000_000
 

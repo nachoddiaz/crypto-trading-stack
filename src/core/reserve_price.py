@@ -1,7 +1,6 @@
 import math
 import asyncio
-from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Dict
 from src.core.models import Registro
 from src.core.data_persister import DataPersister
 
@@ -32,7 +31,8 @@ class ReservePrice:
     def _calc_OBI(self, tick: Registro) -> float:
         diff = tick.bid_quantity - tick.ask_quantity
         total = tick.bid_quantity + tick.ask_quantity
-        if total == 0: return 0.0
+        if total == 0: 
+            return 0.0
         return diff / total
 
     def _update_volatility(self, current_mid: float, timestamp: float):
@@ -93,11 +93,6 @@ class ReservePrice:
         
         reservation_price = micro_price + alpha_adj - inventory_risk_adj
         
-        # 5. Calcular Spread
-        half_spread = theta/2
-        
-        final_ask = reservation_price + half_spread
-        final_bid = reservation_price - half_spread
         
         return {
             "symbol": self.symbol,

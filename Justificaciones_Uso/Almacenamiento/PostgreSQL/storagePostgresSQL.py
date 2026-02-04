@@ -33,10 +33,7 @@ class StoragePostgres:
                 """))
                 
                 # Intentar convertir a Hypertable (TimescaleDB) si no lo es
-                try:
-                    con.execute(text("SELECT create_hypertable('ticks', 'time', if_not_exists => TRUE);"))
-                except:
-                    pass
+                con.execute(text("SELECT create_hypertable('ticks', 'time', if_not_exists => TRUE);"))
                 con.commit()
                 
         except Exception as e:
@@ -44,11 +41,13 @@ class StoragePostgres:
             self.engine = None
 
     def write(self, data_list):
-        if not self.engine: return
+        if not self.engine: 
+            return
         df = pd.DataFrame(data_list)
         df.to_sql('ticks', self.engine, if_exists='append', index=False, method='multi')
 
     def get_size(self):
-        if not self.engine: return 0
+        if not self.engine: 
+            return 0
         with self.engine.connect() as con:
             return con.execute(text("SELECT pg_total_relation_size('ticks')")).scalar() / (1024 * 1024)

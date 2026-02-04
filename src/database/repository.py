@@ -1,5 +1,4 @@
 import os
-import asyncio
 from typing import List, Dict, Any
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -31,10 +30,18 @@ class AsyncRepository:
     async def init_db(self):
         """Crea las tablas en la base de datos si no existen."""
         async with self.engine.begin() as conn:
-            # Elimina y recrea tablas (CUIDADO: Solo para desarrollo/reset)
-            # await conn.run_sync(Base.metadata.drop_all) 
             await conn.run_sync(Base.metadata.create_all)
             print("✅ Tablas de base de datos inicializadas.")
+        
+        # COMENTADO: No limpiar trades automáticamente para que persistan
+        # await self.clear_all_trades()
+
+    async def clear_all_trades(self):
+        """Limpia todos los trades de la base de datos (para reinicio limpio)."""
+        async with self.async_session() as session:
+            async with session.begin():
+                await session.execute(TradeSQL.__table__.delete())
+            print("🗑️ Trades anteriores eliminados.")
 
     async def save_batch(self, ticks_data: List[Dict[str, Any]]):
         """

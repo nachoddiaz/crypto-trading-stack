@@ -30,7 +30,8 @@ class PortfolioReporter:
     @staticmethod
     def calculate_metrics(equity_df: pd.DataFrame) -> Dict[str, float]:
         """Calcula métricas de rendimiento (Sharpe, Drawdown) sobre el DF."""
-        if equity_df.empty: return {}
+        if equity_df.empty: 
+            return {}
         
         # Ejemplo simple de métrica
         returns = equity_df['total_equity'].pct_change().dropna()

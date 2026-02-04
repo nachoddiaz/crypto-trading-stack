@@ -1,5 +1,5 @@
 // Infrastructure Layer - API Adapter
-import { Candle, Trade, PnLMetrics, BidAskTick } from '../../domain/types'
+import { Candle, Trade, PnLMetrics, BidAskTick, Position } from '../../domain/types'
 
 const API_BASE = '/api'
 
@@ -61,5 +61,27 @@ export async function fetchTicks(symbol: string, limit = 500): Promise<BidAskTic
     } catch (error) {
         console.error('Error fetching ticks:', error)
         return []
+    }
+}
+
+export async function fetchPositions(): Promise<Position[]> {
+    try {
+        const res = await fetch(`${API_BASE}/positions`)
+        const data = await res.json()
+        return data.positions || []
+    } catch (error) {
+        console.error('Error fetching positions:', error)
+        return []
+    }
+}
+
+export async function fetchStrategies(): Promise<string[]> {
+    try {
+        const res = await fetch(`${API_BASE}/strategies`)
+        const data = await res.json()
+        return data.strategies || []
+    } catch (error) {
+        console.error('Error fetching strategies:', error)
+        return ['SMA', 'MOMENTUM', 'ENGULFING'] // Fallback
     }
 }

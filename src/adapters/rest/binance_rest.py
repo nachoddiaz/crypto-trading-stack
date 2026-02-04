@@ -66,8 +66,11 @@ class BinanceRest:
         limit_per_call = 1000
         all_candles = []
         
-        # Convertir fecha inicio a timestamp ms
-        start_ts = int(datetime.strptime(start_str, "%Y-%m-%d").timestamp() * 1000)
+        # Convertir fecha inicio a timestamp ms (soporta "YYYY-MM-DD" o "YYYY-MM-DD HH:MM")
+        if " " in start_str:
+            start_ts = int(datetime.strptime(start_str, "%Y-%m-%d %H:%M").timestamp() * 1000)
+        else:
+            start_ts = int(datetime.strptime(start_str, "%Y-%m-%d").timestamp() * 1000)
         # Timestamp actual
         end_ts_now = int(time.time() * 1000)
         

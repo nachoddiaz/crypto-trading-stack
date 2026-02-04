@@ -1,7 +1,6 @@
 import sys
 import os
 import time
-from datetime import datetime
 
 # Ajusta el path para importar tus módulos
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -55,7 +54,8 @@ def calculate_manual_q_star(tick, risk_budget):
     sigma = tick['vol']
     vol_total = tick['volume']
     
-    if sigma <= 0 or pmkt <= 0: return 0.0
+    if sigma <= 0 or pmkt <= 0: 
+        return 0.0
     
     # 1. Base y Edge
     denom = pmkt * sigma
@@ -85,7 +85,8 @@ def run_simulation():
 
     while True:
         tick = sim.get_next_tick()
-        if not tick: break
+        if not tick: 
+            break
         
         signal = tick["signal"]
         ts = tick["time"]

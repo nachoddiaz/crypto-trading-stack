@@ -1,10 +1,7 @@
 import sys
 import os
 import time
-import random
 import numpy as np
-import pandas as pd
-from datetime import datetime
 
 # --- CONFIGURACIÓN DE IMPORTS ---
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -18,8 +15,10 @@ from src.middleware.dashboard_reporter import PortfolioReporter
 class MockStrategy:
     def calculate(self, current_price: float, ma_fast: float) -> int:
         # Umbrales más sensibles para asegurar disparo en el test
-        if current_price < ma_fast * 0.9995: return 1  # BUY (Cae un poquito)
-        if current_price > ma_fast * 1.0005: return -1 # SELL (Sube un poquito)
+        if current_price < ma_fast * 0.9995: 
+            return 1  # BUY (Cae un poquito)
+        if current_price > ma_fast * 1.0005: 
+            return -1 # SELL (Sube un poquito)
         return 0
 
 # --- DATA GENERATORS ---
@@ -80,17 +79,21 @@ class SystemIntegrationTest:
             
             # 1. Movimiento de Precio Controlado
             # Tick 10-20: Bajada fuerte -> Debería dar BUY
-            if 10 < i < 20: current_price *= 0.9995
+            if 10 < i < 20: 
+                current_price *= 0.9995
             # Tick 60-70: Subida fuerte -> Debería dar SELL
-            elif 60 < i < 70: current_price *= 1.0005
-            else: current_price += np.random.normal(0, 2)
+            elif 60 < i < 70: 
+                current_price *= 1.0005
+            else: 
+                current_price += np.random.normal(0, 2)
 
             tick = generate_tick_from_price(current_price, ts)
             self.market_state.on_tick(tick)
             
             # 2. Estrategia
             closes = self.market_state.get_arrays()
-            if len(closes) < 10: continue
+            if len(closes) < 10: 
+                continue
             ma_fast = np.mean(closes[-10:])
             signal = self.strategy.calculate(current_price, ma_fast)
             

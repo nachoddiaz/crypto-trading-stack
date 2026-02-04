@@ -1,6 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime
+from typing import Optional
 
 # --- Esquema para Velas (Gráfico) ---
 class CandleResponse(BaseModel):

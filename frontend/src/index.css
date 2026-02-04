@@ -16,6 +16,32 @@
   box-sizing: border-box;
 }
 
+/* Custom Scrollbar - Dark Theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-blue);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) var(--bg-tertiary);
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
   background-color: var(--bg-primary);
@@ -89,6 +115,7 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+  align-items: stretch;
 }
 
 .chart-panel {
@@ -96,7 +123,17 @@ body {
   border-radius: 8px;
   border: 1px solid var(--border-color);
   padding: 16px;
-  min-height: 350px;
+  height: 450px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-panel .panel-title {
+  flex-shrink: 0;
+}
+
+.chart-panel>div:last-child {
+  flex: 1;
 }
 
 .panel-title {
@@ -158,8 +195,9 @@ body {
 
 .pnl-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
+  margin-top: 16px;
 }
 
 .pnl-item {
@@ -187,6 +225,49 @@ body {
 
 .pnl-value.negative {
   color: var(--accent-red);
+}
+
+/* Equity Row - Capital and P&L in dollars */
+.equity-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.equity-item {
+  text-align: center;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+}
+
+.equity-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.equity-value.positive {
+  color: var(--accent-green);
+}
+
+.equity-value.negative {
+  color: var(--accent-red);
+}
+
+/* Total Row */
+.total-row {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.total-item {
+  text-align: center;
 }
 
 /* Card styles (legacy, keeping for compatibility) */
@@ -218,12 +299,18 @@ body {
 
 /* Responsive */
 @media (max-width: 900px) {
-  .charts-row {
+
+  .charts-row,
+  .tables-row {
     grid-template-columns: 1fr;
   }
 
   .pnl-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  .filter-panel {
+    flex-wrap: wrap;
   }
 }
 
@@ -231,4 +318,204 @@ body {
   .pnl-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* Filter Panel */
+.filters-section {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  padding: 12px 16px;
+}
+
+.filter-panel {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.select-filter {
+  padding: 6px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.date-input {
+  padding: 6px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+/* Tables Row - Two columns */
+.tables-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.table-panel {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-panel .table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.table-panel .panel-title {
+  padding: 12px 16px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.table-panel table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-panel th,
+.table-panel td {
+  padding: 10px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.table-panel th {
+  background: var(--bg-tertiary);
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.table-panel td {
+  font-size: 0.875rem;
+}
+
+.table-panel .buy {
+  color: var(--accent-green);
+}
+
+.table-panel .sell {
+  color: var(--accent-red);
+}
+
+/* Strategy Params Section */
+.strategy-params-section {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  padding: 16px;
+}
+
+.strategy-params-section .panel-title {
+  margin-bottom: 12px;
+}
+
+.strategy-params-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.strategy-params-table th,
+.strategy-params-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.strategy-params-table th {
+  background: var(--bg-tertiary);
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.strategy-params-table td {
+  font-size: 0.875rem;
+}
+
+.strategy-params-hint {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+/* Inline Params Display */
+.strategy-params-inline {
+  display: flex;
+  gap: 16px;
+}
+
+.params-row {
+  display: flex;
+  gap: 24px;
+}
+
+.param-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  min-width: 80px;
+}
+
+.param-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.param-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.param-value.fast-ma {
+  color: #58a6ff;
+}
+
+.param-value.slow-ma {
+  color: #f0883e;
+}
+
+.strategy-params-empty {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
 }

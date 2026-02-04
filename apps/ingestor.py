@@ -20,7 +20,7 @@ from src.core.realtime_processor import RealTimeProcessor
 
 
 
-async def setup_symbol(symbol: str, repo: AsyncRepository, rest_client: BinanceRest, start_date: str) -> tuple[str, RealTimeProcessor]:
+async def setup_symbol(symbol: str, repo: AsyncRepository, rest_client: BinanceRest, start_date: str, redis_bus=None) -> tuple[str, RealTimeProcessor]:
     """
     Función auxiliar que configura TODO el stack para UNA sola moneda.
     Se ejecutará en paralelo para todas las monedas.
@@ -35,7 +35,7 @@ async def setup_symbol(symbol: str, repo: AsyncRepository, rest_client: BinanceR
     # 2. Descarga Histórica (Cold Path)
     try:
         print(f"📥 Descargando histórico {symbol}...")
-        history: List[Candle] = rest_client.get_historical_candles(symbol, interval="1m", start_str=start_date)
+        history: List[Candle] = rest_client.get_historical_candles(symbol, interval="1s", start_str=start_date)
         
         if history:
             market_state.initialize_history(history)
@@ -52,11 +52,12 @@ async def setup_symbol(symbol: str, repo: AsyncRepository, rest_client: BinanceR
         market_state=market_state,
         engine=engine,
         portfolio_manager=pm,
-        repository=repo
+        repository=repo,
+        redis_bus=redis_bus  # Para publicar trades en tiempo real
     )
     
     # Asegurar que acepte datos nuevos inmediatos
-    processor.last_minute_processed = -1 
+    processor.last_second_processed = -1 
 
     return symbol, processor
 
@@ -64,10 +65,9 @@ async def main():
     bus = RedisBus(stream_key="binance_ticks")
     exchange_name = "binance"
     target_symbols  = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "ADAUSDT", "LINKUSDT", "DOTUSDT"] #"HYPEUSDT"]
-    start_date = "2026-02-01"
+    start_date = "2026-02-04 20:00"
 
     # 1. Inicialización de Estrategias y Estado
-    market_states = {}
     rest_client = BinanceRest()
     repo = AsyncRepository()
 
@@ -77,7 +77,7 @@ async def main():
 
     print(f"🚀 Lanzando carga paralela para {len(target_symbols)} pares...")
     
-    tasks = [setup_symbol(sym, repo, rest_client, start_date) for sym in target_symbols]
+    tasks = [setup_symbol(sym, repo, rest_client, start_date, bus) for sym in target_symbols]
 
     # Ejecutamos todas a la vez y esperamos los resultados
     results = await asyncio.gather(*tasks)

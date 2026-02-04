@@ -1,9 +1,7 @@
 import asyncio
 import time
-import math
 import websockets
 from abc import ABC, abstractmethod  # Abstract Base Class
-from dataclasses import dataclass
 from typing import Optional
 from src.core.models import Registro
 

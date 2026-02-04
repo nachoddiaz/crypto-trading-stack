@@ -1,4 +1,3 @@
-import asyncio
 import os
 import json
 import redis.asyncio as aioredis
@@ -104,3 +103,34 @@ class RedisBus:
         finally:
             await pubsub.unsubscribe(PUBSUB_CHANNEL)
             await pubsub.close()
+
+    # ==================== ESTADO PERSISTENTE (Key-Value) ====================
+    
+    async def set_engine_state(self, symbol: str, state: dict):
+        """
+        Guarda el estado del TraderEngine para un símbolo en Redis.
+        Key: engine_state:{symbol}
+        """
+        key = f"engine_state:{symbol}"
+        await self.r.set(key, json.dumps(state))
+    
+    async def get_engine_state(self, symbol: str) -> dict | None:
+        """Lee el estado del TraderEngine para un símbolo."""
+        key = f"engine_state:{symbol}"
+        data = await self.r.get(key)
+        if data:
+            return json.loads(data)
+        return None
+    
+    async def get_all_engine_states(self) -> dict:
+        """
+        Lee todos los estados de TraderEngine (para calcular PnL agregado).
+        Retorna: {symbol: state_dict}
+        """
+        states = {}
+        async for key in self.r.scan_iter("engine_state:*"):
+            symbol = key.decode().replace("engine_state:", "")
+            data = await self.r.get(key)
+            if data:
+                states[symbol] = json.loads(data)
+        return states

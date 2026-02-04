@@ -9,11 +9,13 @@ class MarketState:
         self.closed_candles: deque = deque(maxlen=window_size)
         self.current_candle: Optional[Candle] = None
         self.interval_sec = 60 # Ejemplo para 1 minuto
+        self._history_count = 0  # Contador de velas cargadas via REST (warmup)
 
     def initialize_history(self, historical_data: List[Candle]):
         """Carga inicial (Cold Path) desde REST API"""
         print(f"⚡ Calentando motor con {len(historical_data)} velas históricas...")
         self.closed_candles.extend(historical_data)
+        self._history_count = len(historical_data)  # Guardamos cuántas son históricas
         
         # Inicializar la vela actual basada en el último cierre si es necesario
         # o esperar al primer tick.
@@ -25,6 +27,10 @@ class MarketState:
                 open=last.close, high=last.close, low=last.close, close=last.close, 
                 volume=0.0, closed=False
             )
+    
+    def get_history_count(self) -> int:
+        """Retorna cuántas velas se cargaron via REST (para filtrar warmup)"""
+        return self._history_count
 
     def on_tick(self, tick: Registro):
         """
@@ -50,8 +56,10 @@ class MarketState:
         """Operación ligera de actualización (in-place)"""
         c = self.current_candle
         c.close = tick.bid_price # O mid price, según tu lógica
-        if c.close > c.high: c.high = c.close
-        if c.close < c.low: c.low = c.close
+        if c.close > c.high: 
+            c.high = c.close
+        if c.close < c.low: 
+            c.low = c.close
         c.volume += (tick.bid_quantity + tick.ask_quantity) # Aproximación de volumen
 
     def _close_current_candle(self):

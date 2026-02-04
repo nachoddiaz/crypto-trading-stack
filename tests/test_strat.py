@@ -2,7 +2,12 @@ import sys
 import os
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
+import time
+from datetime import datetime
+
+from src.core.strategies.portfolio_manager import PortfolioManager
+from src.core.market_state import MarketState
+from src.core.models import Candle
 
 current_test_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_test_dir, '..'))
@@ -10,9 +15,7 @@ project_root = os.path.abspath(os.path.join(current_test_dir, '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from src.core.strategies.portfolio_manager import PortfolioManager
-from src.core.market_state import MarketState
-from src.core.models import Candle
+
 
 # --- MOCKING: Simulamos el MarketState para no depender del WebSocket real ---
 class MockMarketState(MarketState):
@@ -57,7 +60,6 @@ class MockMarketState(MarketState):
         highs = np.array([c.high for c in self.closed_candles])
         lows = np.array([c.low for c in self.closed_candles])
         return opens, highs, lows, closes
-import time
 
 def test_integration():
     print("🚀 INICIANDO TEST DE INTEGRACIÓN DE ESTRATEGIAS\n")

@@ -3,13 +3,12 @@ import websockets
 import json
 import time
 from collections import defaultdict
-from typing import Optional, List
+from typing import Optional
 from tenacity import (
     retry,
     wait_exponential,
     stop_never,
-    retry_if_exception_type,
-    before_sleep_log
+    retry_if_exception_type
 )
 import logging
 

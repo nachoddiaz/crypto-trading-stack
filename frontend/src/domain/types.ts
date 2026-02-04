@@ -26,14 +26,19 @@ export interface PnLMetrics {
     qtd: number
     ytd: number
     total: number
+    equity?: number
+    initial_capital?: number
+    total_trades?: number
 }
 
 export interface Position {
     symbol: string
-    qty: number
-    avg_price: number
-    current_price: number
-    pnl_unrealized: number
+    qty?: number
+    quantity?: number
+    last_trade?: Trade
+    avg_price?: number
+    current_price?: number
+    pnl_unrealized?: number
 }
 
 export interface BalanceMetrics {

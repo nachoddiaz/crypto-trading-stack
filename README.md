@@ -278,7 +278,7 @@ Luego continuo con el desarrollo de la API
 Necesidades auxiliares
 ----------------------------------------------------------------------------------------------------------------------------------
 Hay que descargar más datos via RestAPI para mayor poder de backtesting mientras -> necesidad de manejo errores HTTP 418 y 429:
-    418: "Soy una tetera" Originalmente es una broma del protocolo HTTP ("Soy una tetera, no puedo hacer café"), pero Binance lo usa para indicar un Baneo de IP Automático.
+    418:  Binance lo usa para indicar un Baneo de IP Automático.
     429: Demasiadas request -> introducir pausas en mi bucle de forma inteligente -> leer el header "retry-after" ya que Binance indicará cuanto tiempo debo esperar.
     
 Modifico el script binance_rest introduciendo el método "_make_request" para saber cuando realizar peticiones y manejar los errores HTTP 418 y 429.
@@ -316,6 +316,7 @@ Creo el método add_candle en market_state.py para agregar las velas cerradas ca
 
 Mi docker no encuentra el archivo con lo parámetros de cada estrategia, añado el volumen de código a mi docker-compose.yaml
 
+Publico los trades vía Redis para que el frontend se actualice instantáneamente
 #############################
 Sigo con la creación de endpoints de la API
 #############################
@@ -336,12 +337,16 @@ Creo una layout tal que:
 │              HEADER                    │
 ├──────────────────┬─────────────────────┤
 │  Bid/Ask Chart   │  Candlestick Chart  │
-│  (evolución)     │  (minutos)          │
+│  (evolución)     │  (según alpha decay)│
 ├──────────────────┴─────────────────────┤
 │           TRADES TABLE                 │
 ├────────────────────────────────────────┤
 │           METRICS (PnL Cards)          │
 └────────────────────────────────────────┘
+
+Además creo dropdown para elegir por símbolo, por estrategia y para poder filtrar por fechas
+
+A su vez, sgún la estrategia seleccionada, se mostrarán los parámetros correspondientes y se graficarán las MA
 
 
 
@@ -352,3 +357,65 @@ Creo el script start.sh para levantar todo el sistema con un solo comando
 Ingestor → Redis Stream → Persister → PostgreSQL
      ↓
 Redis Pub/Sub (canal separado) → API WebSocket → Frontend
+
+
+Debo introducir la funcnión e eliminar registro de trades en repository.py
+Elimino la posibilidad de ejercer trades en la primera vela
+
+
+#####################
+Introducción de Alpha Decay 
+###################
+Motivación: tras intercambiar correos, es razonable y más cerano a la realidad imponer el intervalo como resultante de un cierto alpha decay, no arbitrariamente en un minuto. Debo ir mutando el periodo en función del alpha decay de las estrategias. 
+Entiendo que en un entorno real, el intervalo de tiempo de las velas no es constante, sino que varía en función de la volatilidad del mercado. Pero la implementación de un alpha decay ueda fuera de scope
+
+
+###################
+Cambio de Hype por Dot
+###################
+Resolución de conflictos que surgen cuando un símbolo no existe en Binance.
+Puedo irme por dos caminos:
+    1. Utilizando una arquitectura hexagonal  usando una metaclase para registrar proveedores como estoy haciendo, añadiendo por ejemplo Coinbase
+    2. Utilizando web3.js podemos consultar el latestRoundData de Chainlink para obtener el precio del activo pero obtenemos una latencia mayor que desde un CEX
+
+
+
+##################
+Solucion de errores en posiciones abiertas y PnL
+##################
+
+Implemento la persistencia completa del estado del TraderEngine via Redis Pub/Sub aprovechándolo como borker de mensajería entre Backend y la API
+
+Además impongo la condición de unicamente poder tradear con las velas que vienen del socket para evitar incongruencias
+
+
+#####################
+Requerimientos Excelencia
+#####################
+
+1. MyPy para asegurar que los datos que fluyen por la arquitectura hexagonal sean del tipo correcto antes de ejecutar el código
+    Instalo mypy 
+
+
+2. Ruff para uamentar legibilidad d código y seguir estándares de la industria
+    Instalo ruff y lo ejecuto: "ruff check . --fix"
+    Detecta varios errores de importación y de tipado
+    La mayoría de errorres son de tipado para mejorar la legibilidad del código pero hay algunos respecto a la gestión de errores que arreglo capturando el tipo de error específico en lugar de usar bare except
+    El unico "error" que no soluciono es el de la variable ambigua O en optimizer.py
+
+3. Uso Sphinx para generar documentación
+    Instalo sphinx sphinx-rtd-theme myst-parser, este ultimo para pasar la memoria que he ido haciendo en el REadme
+
+
+
+
+4. Medidas de latencia
+
+
+5. Herramientas de profiling
+
+
+
+6. CI/CD
+    
+

@@ -1,7 +1,5 @@
-import time
 from abc import ABC, abstractmethod, ABCMeta
 import numpy as np
-from typing import Dict, Any
 
 # --- DECORADOR: Monitorización de Latencia ---
 def measure_latency(func):
@@ -10,18 +8,9 @@ def measure_latency(func):
     Si una estrategia tarda demasiado, podría bloquear el procesamiento de ticks.
     """
     def wrapper(*args, **kwargs):
-        # High-resolution timer para medir microsegundos
-        start = time.perf_counter()
-        
+        # High-resolution timer para medir microsegundos        
         result = func(*args, **kwargs)
-        
-        # Calculamos delta en milisegundos
-        dt = (time.perf_counter() - start) * 1000 
-        
-        # En un sistema real, aquí enviaríamos métricas a Prometheus/Grafana
-        # Para el proyecto, validamos que no rompa el presupuesto de latencia (ej. 1ms)
-        # if dt > 1.0: 
-        #     print(f"⚠️ SLOW WARNING: {func.__qualname__} tardó {dt:.4f} ms")
+
             
         return result
     return wrapper

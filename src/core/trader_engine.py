@@ -1,5 +1,4 @@
-import math
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 
 class TraderEngine:
     """
@@ -84,7 +83,8 @@ class TraderEngine:
         2. Calcula Q*.
         3. Ejecuta orden.
         """
-        if signal == 0: return
+        if signal == 0: 
+            return
 
         # --- 1. Restricción Temporal (1 trade por minuto por par) ---
         last_ts = self.last_trade_ts.get(symbol, 0.0)
@@ -96,7 +96,8 @@ class TraderEngine:
         # --- 2. Calcular Tamaño Óptimo (Q*) ---
         q_optimal = self._calculate_optimal_size(market_price, reserve_price, volatility, volume)
         
-        if q_optimal <= 0: return
+        if q_optimal <= 0: 
+            return
 
         denom = market_price * volatility if volatility > 1e-9 else 1.0
         edge_metric = abs(reserve_price - market_price) / denom
@@ -192,3 +193,19 @@ class TraderEngine:
     # Getters
     def get_history_raw(self) -> List[Dict]: return self._trades_history
     def get_equity_curve_raw(self) -> List[Dict]: return self._equity_curve
+    
+    def to_redis_state(self) -> Dict[str, Any]:
+        """
+        Serializa el estado del engine para guardar en Redis.
+        Usado por la API para mostrar posiciones y PnL en tiempo real.
+        """
+        # Calcular PnL total de los trades
+        total_pnl = sum(t.get('pnl_realized', 0) or 0 for t in self._trades_history)
+        
+        return {
+            "usdt_balance": self.usdt_balance,
+            "crypto_balances": self.crypto_balances,
+            "total_trades": len(self._trades_history),
+            "total_pnl": total_pnl,
+            "last_trade": self._trades_history[-1] if self._trades_history else None
+        }

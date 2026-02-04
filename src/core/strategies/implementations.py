@@ -1,10 +1,9 @@
 import numpy as np
-from typing import Optional
 
 # Importamos la lógica dura (los pistones)
 # Asegúrate de que math_numba exista en src/core/
 from src.core.strategies import math_numba 
-from src.core.strategies.base import BaseStrategy, measure_latency
+from src.core.strategies.base import measure_latency
 
 class Strategy:
     """Clase base para tipado"""
@@ -21,8 +20,8 @@ class MACrossover(Strategy):
 
     @measure_latency
     def calculate(self, closes: np.ndarray, **kwargs) -> int:
-        """ Delegamos inmediatamente a Numba."""
-        return math_numba.backtest_ma_crossover(closes, self.fast, self.slow)
+        """ Delegamos a Numba para señal de cruce de medias."""
+        return math_numba.calc_ma_signal(closes, self.fast, self.slow)
 
 class MomentumStrategy(Strategy):
     ID = "MOMENTUM"
@@ -32,7 +31,7 @@ class MomentumStrategy(Strategy):
 
     @measure_latency
     def calculate(self, closes: np.ndarray, **kwargs) -> int:
-        return math_numba.backtest_momentum(closes, self.period, self.threshold)
+        return math_numba.calc_momentum_signal(closes, self.period, self.threshold)
 
 class EngulfingPattern(Strategy):
     ID = "ENGULFING"

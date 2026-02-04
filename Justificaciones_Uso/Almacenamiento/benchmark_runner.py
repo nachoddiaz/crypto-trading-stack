@@ -1,6 +1,5 @@
 import asyncio
 import time
-import pandas as pd
 from dataclasses import asdict
 
 # --- TUS IMPORTS DE LÓGICA ---
@@ -73,8 +72,10 @@ class LiveBenchmarkEngine:
         
         for name, engine in self.strategies:
             # Validaciones de conexión
-            if name == "PostgreSQL" and getattr(engine, 'engine', None) is None: continue
-            if name == "MongoDB" and getattr(engine, 'client', None) is None: continue
+            if name == "PostgreSQL" and getattr(engine, 'engine', None) is None: 
+                continue
+            if name == "MongoDB" and getattr(engine, 'client', None) is None: 
+                continue
 
             try:
                 # --- MEDICIÓN DE TIEMPO ---
