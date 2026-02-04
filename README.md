@@ -328,6 +328,8 @@ En routes.py accedo a los atributos de las velas, creo endpoint para identificar
 Creación del front end via React Vite
 #####################################
 
+Se ha seleccionado React + Vite para garantizar una experiencia de usuario sin bloqueos (non-blocking UI). Dado que el dashboard debe reflejar cambios en el libro de órdenes y el PnL con una latencia inferior al tiempo de procesamiento del motor. Vite nos permite una arquitectura modular donde la visualización no interfiere con la consistencia de los datos.
+
 Con npx -y create-vite@latest creo el proyecto en la carpeta frontend con el package.json, vite.config.js, index.html, el directorio src y un componente App.jsx
 
 Una vez creados los endpoints, utilizo librerías de TradgingView
@@ -411,12 +413,385 @@ Requerimientos Excelencia
 
 
 4. Medidas de latencia
+    Lo implemento directamente con la IA, creo 1000 operacinoes simuladas, dando los siguientes resultados:
+    ======================================================================
+    📊 PERFORMANCE METRICS SUMMARY
+    ======================================================================
+
+    🖥️  SYSTEM RESOURCES
+    CPU:    0.0%
+    Memory: 29.7 MB (0.2%)
+
+    ⏱️  LATENCY (ms)
+    ----------------------------------------------------------------------
+    Operation                    Count      P50      P95      P99     Mean
+    ----------------------------------------------------------------------
+    process_tick                  1000   0.7048   1.1400   1.2109   0.6970
+    strategy_calculate            1000   1.4524   2.1707   2.2503   1.4639
+    db_write                      1000   3.3017   5.1386   5.3497   3.2850
+
+    🚀 THROUGHPUT (ops/sec)
+    process_tick: 181.56
+    strategy_calculate: 181.55
+    db_write: 181.54
 
 
 5. Herramientas de profiling
-
-
-
-6. CI/CD
+    Utilizo las 3 herramientas proporcionadas por el profesor, el profiling es una técnica de análisis dinámico que miden el rendimiento de un programa mientras se ejecuta cuyo objetivo es identificar qué partes del código consumen más recursos, permitiéndote optimizar con precisión.
+    cProfile: más básico, viene integrado en python
+    py-spy: para procesos en vivo, se pueden generar flamegraphs. En este caso, vemos que se gasta bastante tiempo para importar librerías y a la inicialización de módulos
+    scalene: para línea por línea
     
 
+6. CI/CD
+    Ya tengo docker-compose, lo he ido haciendo con el proyecto, me falta el script de terraform para desplegarlo en AWS.
+    Defino los requisitos: suficiente ram como para correr PostgreSQL, Redis, la API y el fron. 
+    Defino los bloques minimos: 
+        terraform {}     # Versión y providers requeridos
+        provider "aws" {} # Configuración del proveedor cloud
+        variable {}      # Variables parametrizables
+        data {}          # Datos externos (ej: buscar AMI más reciente)
+        resource {}      # Recursos a crear
+        output {}        # Valores de salida (IPs, URLs, etc.)
+    Elijo aws y eu-west-1
+    Defino las reglas de firewall: 
+        resource "aws_security_group" "hesperides_sg" {
+            ingress { port = 22 }   # SSH
+            ingress { port = 8000 } # API
+            ingress { port = 3000 } # Frontend
+            egress { all }          # Permitir salida
+        }
+
+    Ahora habría que instalar terraform y ejecutar los siguuientes comandos:
+    terraform init
+    terraform plan
+    terraform apply
+
+
+
+## Respuestas a preguntas no contestadas previamente
+
+### 1. Ordenación temporal, latencia y relojes distribuidos
+
+**1. Detección de información bajada via WebSocket desordenada:**
+Binance puede entregar mensajes fuera de orden porque usa múltiples servidores con relojes ligeramente desincronizados. En mi código, la clase `DataGuard` (en `binance_socket.py`) detecta esto comparando `new_tick.time < self._last_state.time`. Si el timestamp del nuevo tick es menor que el último procesado, lo descarto y aumento el contador `_dropped_out_of_order`.
+
+**Ejemplo concreto:** Si recibo tick1 con t=1000ms, luego tick2 con t=998ms (llegó tarde desde otro servidor), mi guard lo detecta y descarta tick2.
+
+**2. Event time vs Ingestion time:**
+- **Event time**: Momento en que el evento ocurrió en el exchange (timestamp de Binance)
+- **Ingestion time**: Momento en que mi sistema recibe y procesa el mensaje
+
+**¿Cuál usar?** Event time para cálculos de estrategias porque refleja el momento real del mercado. Uso ingestion time (`time.time()`) para monitorizar latencia del pipeline.
+
+**3. Reconstrucción de flujo temporal coherente:**
+- **Buffer:** Acumulo N segundos de datos, ordeno por timestamp, proceso en orden. **Ventaja:** Garantiza orden perfecto. **Desventaja:** Añade latencia fija.
+- **Corrección incremental:** Proceso inmediatamente, si llega uno fuera de orden, lo descarto o corrijo estado. **Ventaja:** Baja latencia. **Desventaja:** Puede perder datos.
+
+Mi implementación usa corrección incremental (descarte) porque la latencia es prioritaria en trading.
+
+**4. Clock drift:**
+Desviación progresiva entre relojes de diferentes sistemas. El timestamp del backend es autoritativo cuando: (a) el exchange no proporciona timestamp, (b) necesitamos medir latencia del pipeline, (c) ordenar eventos de múltiples exchanges.
+
+**5. Test determinista de monotonicidad:**
+```python
+def test_monotonicity_violation():
+    guard = DataGuard()
+    tick1 = Registro(time=1000, ...)
+    tick2 = Registro(time=998, ...)  # Fuera de orden
+    
+    assert guard.monotonicity_duplicates(tick1) == True
+    assert guard.monotonicity_duplicates(tick2) == False  # Rechazado
+    assert guard._dropped_out_of_order == 1
+```
+
+---
+
+### 2. Persistencia, idempotencia y eliminación de duplicados
+
+**5. Detección de duplicados y primary identity de un trade:**
+La primary identity de un trade es la combinación `(symbol, timestamp, price, quantity)`. En mi `DataGuard`, detecto duplicados comparando todos los campos del tick (bid/ask price + quantities). Si son idénticos al último, es duplicado.
+
+**6. Idempotencia:**
+Una operación es idempotente si ejecutarla múltiples veces produce el mismo resultado. En mi ingestor, usar `INSERT ... ON CONFLICT DO NOTHING` garantiza que reintentos tras una reconexión no dupliquen datos.
+
+**Caso de duplicados sin idempotencia:** Si el socket se desconecta justo después de enviar datos a Redis pero antes de confirmar, la reconexión reenviaría los mismos datos duplicándolos.
+
+**6. Esquema para garantizar unicidad:**
+```sql
+CREATE TABLE book_ticks (
+    symbol VARCHAR(20),
+    event_time BIGINT,
+    bid_price DECIMAL,
+    PRIMARY KEY (symbol, event_time)  -- Unicidad compuesta
+);
+```
+El PRIMARY KEY compuesto evita duplicados bajo concurrencia.
+
+**7. Condiciones de carrera en inserción:**
+Uso `asyncio.Lock` cuando múltiples corrutinas acceden al mismo recurso. En PostgreSQL, las transacciones con nivel de aislamiento `SERIALIZABLE` previenen condiciones de carrera. Mi buffer en `repository.py` acumula datos y hace batch inserts atómicos.
+
+---
+
+### 3. Backpressure y control de flujo
+
+**8. Si Binance envía más rápido de lo que proceso:**
+Redis Streams actúa como buffer elástico entre ingestor y persister. Si el consumidor (persister) no puede seguir el ritmo, los mensajes se acumulan en Redis. Eventualmente, si Redis alcanza su límite de memoria, comenzaría a descartar mensajes antiguos (política `maxmemory-policy volatile-lru`).
+
+**9. Detección de lag:**
+```python
+# En el consumidor
+last_processed_id = await redis.xread(...)
+stream_info = await redis.xinfo_stream('ticks')
+pending = stream_info['length'] - processed_count
+if pending > 1000:
+    logger.warning(f"Consumer lag: {pending} mensajes pendientes")
+```
+
+**10. Bounded queues con drop oldest vs rate limiting:**
+- **Drop oldest**: Descarta mensajes antiguos cuando la cola está llena. **Sesgo:** Pierdes historia, tus MAs serán incorrectas.
+- **Rate limiting**: Ralentizas la entrada. **Sesgo:** Pierdes ticks recientes, tu sistema va "retrasado" respecto al mercado.
+
+Mi elección: Bounded queue con alertas pero sin drop, preferible ralentizar temporalmente.
+
+**11. Métricas de lag y alertas:**
+```python
+# Métrica
+lag_seconds = (time.time() * 1000) - last_event_time
+# Alerta
+if lag_seconds > 5:
+    send_alert("Pipeline lag > 5s")
+```
+
+**12. Reequilibrio de throughput bajo carga extrema:**
+1. Escalar horizontalmente (más consumidores por partición)
+2. Reducir granularidad (agregar antes de persistir)
+3. Mover cálculos pesados a procesos separados con multiprocessing
+
+---
+
+### 4. Consistencia eventual vs consistencia fuerte en PnL
+
+**13. Qué partes necesitan consistencia fuerte:**
+- **Ejecución de trades**: El saldo disponible DEBE estar sincronizado antes de ejecutar
+- **Cálculo de posición actual**: Necesita trade log completo y ordenado
+- **Risk limits**: Verificar margen antes de nueva orden
+
+**14. Ejemplo de PnL incorrecto por inconsistencia:**
+Si ejecuto una venta de BTC pero la base de datos aún no reflejó la compra previa, mi cálculo de PnL mostraría una "venta descubierta" con beneficio ficticio negativo.
+
+**15. Condiciones de carrera en cálculos de PnL:**
+Dos routines actualizando el mismo saldo: Thread A lee saldo=100, Thread B lee saldo=100, ambos suman 10, resultado=110 (debería ser 120). Solución: `asyncio.Lock` o transacciones atómicas en PostgreSQL.
+
+**16. Tests unitarios para invariantes de PnL:**
+```python
+def test_pnl_invariant():
+    engine = TraderEngine(initial_usdt=10000)
+    engine.execute_trade("BUY", "BTCUSDT", 1.0, 50000)
+    engine.execute_trade("SELL", "BTCUSDT", 1.0, 51000)
+    
+    # Invariante: PnL = cash_final - cash_inicial + valor_posiciones
+    assert engine.get_equity() == 10000 + (51000 - 50000)  # Profit
+```
+
+---
+
+### 5. Modelado avanzado de posiciones
+
+**17. Actualizar precio medio tras partial fills:**
+```python
+# Posición actual: 2 BTC @ 50000
+# Nuevo fill: 1 BTC @ 52000
+new_qty = 2 + 1  # = 3
+new_avg_price = (2 * 50000 + 1 * 52000) / 3  # = 50666.67
+```
+Implementado en `TraderEngine` con `update_position()`.
+
+**18. Reconstruir posición desde log de trades:**
+```python
+def rebuild_portfolio(trades: List[Trade]) -> Dict[str, Position]:
+    positions = {}
+    for trade in sorted(trades, key=lambda t: t.timestamp):
+        symbol = trade.symbol
+        if trade.side == "BUY":
+            positions[symbol].qty += trade.qty
+        else:
+            positions[symbol].qty -= trade.qty
+        # Recalcular avg_price...
+    return positions
+```
+Datos imprescindibles: timestamp, symbol, side, qty, price.
+
+**19. Problemas al mezclar conceptos Binance con dominio:**
+Si mi entidad `Trade` tiene un campo `binance_order_id`, el dominio queda acoplado a Binance. Al integrar otro exchange (Coinbase), tendría que modificar el core. Solución: El adaptador traduce `binance_order_id` a un `exchange_order_id` genérico.
+
+---
+
+### 6. Concurrencia, asincronismo y paralelismo
+
+**20. Cuándo usar asyncio vs threads:**
+- **asyncio**: Para operaciones I/O-bound (WebSockets, HTTP, DB queries). Un solo thread maneja miles de conexiones.
+- **threads**: Para librerías que no soportan async (algunas DB drivers). También para CPU-bound si el GIL no es problema.
+- **multiprocessing**: Para CPU-bound pesado (backtesting, optimización de estrategias).
+
+**21. Qué problema resuelve el GIL:**
+El Global Interpreter Lock impide que dos threads ejecuten bytecode Python simultáneamente, evitando corrupciones de memoria. Afecta a mi sistema porque cálculos CPU-bound (Numba) no se benefician de threads → uso multiprocessing o Numba que libera el GIL.
+
+**22. Evitar que función bloqueante congele event loop:**
+```python
+# MAL: Bloquea todo el event loop
+result = heavy_cpu_function()
+
+# BIEN: Ejecutar en thread pool
+loop = asyncio.get_event_loop()
+result = await loop.run_in_executor(None, heavy_cpu_function)
+```
+
+**23. Pipeline con asyncio.Queue:**
+```
+Ingestor → asyncio.Queue → Processor → asyncio.Queue → Persister
+```
+Cada stage es una corrutina que hace `await queue.get()`, procesa, y hace `await next_queue.put()`.
+
+**24. Race condition con await:**
+```python
+# Problema: Entre el await y el uso, otro task puede modificar
+balance = await get_balance()  # = 100
+# <-- Otro task resta 50 aquí
+await spend(balance)  # Gasta 100, pero solo había 50
+
+# Solución: Lock
+async with balance_lock:
+    balance = await get_balance()
+    await spend(balance)
+```
+
+**25. Medir latencia del event loop:**
+```python
+import time
+async def measure_loop_latency():
+    start = time.perf_counter()
+    await asyncio.sleep(0)  # Yield al loop
+    latency = time.perf_counter() - start
+    if latency > 0.1:
+        logger.warning(f"Event loop lag: {latency*1000:.2f}ms")
+```
+
+---
+
+### 7. Uso avanzado de Python
+
+
+**26. `__enter__`/`__exit__` para consistencia transaccional:**
+```python
+class AtomicUpdate:
+    def __init__(self, engine):
+        self.engine = engine
+        self.snapshot = None
+    
+    def __enter__(self):
+        self.snapshot = self.engine.get_state_copy()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:  # Si hubo error, rollback
+            self.engine.restore_state(self.snapshot)
+        return False
+```
+
+---
+
+### 8. Escalado horizontal y multiactivo
+
+**27. Qué rompe al pasar de 10 a 300 activos:**
+- **WebSocket**: Binance limita a 1024 streams por conexión → necesito múltiples conexiones
+- **CPU**: 300 estrategias calculando en paralelo → bottleneck
+- **Memoria**: 300 MarketStates con historial → ~30x más RAM
+- **DB**: 30x más writes → posible saturación de PostgreSQL
+
+**28. Límites de CPU, IO, memoria:**
+- **CPU**: Numba ayuda, pero 300 símbolos × 3 estrategias = 900 cálculos/minuto
+- **IO**: Redis Streams soporta ~100k msg/s, PostgreSQL ~10k inserts/s batch
+- **Memoria**: Cada MarketState con 1000 velas ≈ 80KB × 300 = 24MB (manejable)
+
+**29. Particionar procesamiento por símbolo:**
+```python
+# Sharding: símbolos A-M → Worker 1, N-Z → Worker 2
+shard = hash(symbol) % num_workers
+await workers[shard].process(tick)
+```
+
+**30. Arquitectura con réplicas sin duplicar trabajo:**
+Usar Redis Streams con Consumer Groups: cada mensaje se entrega a UN solo consumidor del grupo, evitando duplicación.
+
+---
+
+### 9. Tolerancia a fallos y recuperación
+
+**31. ¿At least once, at most once o exactly once?**
+Mi sistema es **at least once**: si Redis falla después de recibir el mensaje pero antes del ACK, lo reenviaré. Acepto posibles duplicados que filtro con idempotencia.
+
+**32. Qué ocurre si persistencia falla:**
+Los mensajes se acumulan en Redis Stream (buffer). Cuando PostgreSQL vuelve, el persister consume el backlog. Riesgo: si Redis también falla, pierdo datos en memoria.
+
+**33. Recuperación determinista tras fallo:**
+1. Al reiniciar, leo último `message_id` persistido
+2. Hago `XREAD` desde ese ID
+3. Reproceso todos los mensajes pendientes
+4. Estado final idéntico al pre-fallo
+
+**34. Evitar corrupción durante caída abrupta:**
+- PostgreSQL usa WAL (Write-Ahead Log) para transacciones atómicas
+- Redis con AOF (Append-Only File) para durabilidad
+- Nunca modifico archivos in-place, uso atomic rename
+
+---
+
+### 10. Pruebas avanzadas
+
+**35. Qué es un fake exchange:**
+Un mock que simula respuestas del exchange real sin conexión a internet. Permite tests deterministas y rápidos.
+```python
+class FakeExchange:
+    def __init__(self, predefined_ticks):
+        self.ticks = predefined_ticks
+    async def subscribe(self):
+        for tick in self.ticks:
+            yield tick
+```
+
+**36. Test determinista con generador de eventos:**
+```python
+def test_pipeline_deterministic():
+    ticks = [
+        Registro(time=1, price=100),
+        Registro(time=2, price=101),
+    ]
+    fake = FakeExchange(ticks)
+    result = run_pipeline(fake)
+    assert result == expected_output  # Siempre igual
+```
+
+**41. Simular condiciones de red adversas:**
+```python
+class UnreliableExchange(FakeExchange):
+    async def subscribe(self):
+        for i, tick in enumerate(self.ticks):
+            if i == 5:
+                await asyncio.sleep(2)  # Latencia
+            if i == 10:
+                raise ConnectionError()  # Desconexión
+            yield tick
+```
+
+**42. Verificar reproducibilidad del pipeline:**
+```python
+def test_reproducibility():
+    input_data = load_fixture("ticks.json")
+    
+    result_1 = run_pipeline(input_data, seed=42)
+    result_2 = run_pipeline(input_data, seed=42)
+    
+    assert result_1.trades == result_2.trades
+    assert result_1.final_pnl == result_2.final_pnl
+```
