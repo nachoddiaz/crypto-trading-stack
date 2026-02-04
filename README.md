@@ -405,6 +405,7 @@ Requerimientos Excelencia
 
 3. Uso Sphinx para generar documentación
     Instalo sphinx sphinx-rtd-theme myst-parser, este ultimo para pasar la memoria que he ido haciendo en el REadme
+    Para actualizar la documentación: make html
 
 
 
