@@ -98,7 +98,7 @@ class PortfolioManager:
 
     def calculate_pnl_metrics(self, equity_df: pd.DataFrame) -> Dict[str, float]:
         """
-        Calcula las métricas de rendimiento exigidas en el PDF.
+        Calcula el retorno del portfolio por periodo: daily, monthly, QTD, YTD y total.
         Este método espera un DataFrame con índice Datetime y columna 'total_equity'.
         
         Retorna un diccionario listo para enviar a la API/Dashboard.

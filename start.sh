@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# Hesperides Trading System - Script de Inicio
+# Crypto Trading Stack - Script de Inicio
 # ============================================
 
 set -e  # Detener si hay error
@@ -8,7 +8,7 @@ set -e  # Detener si hay error
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_DIR"
 
-echo "🚀 Iniciando Hesperides Trading System..."
+echo "🚀 Iniciando Crypto Trading Stack..."
 
 # 1. Levantar infraestructura Docker
 echo ""

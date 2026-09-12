@@ -1,9 +1,9 @@
 #!/bin/bash
 # ============================================
-# Hesperides Trading System - Script de Parada
+# Crypto Trading Stack - Script de Parada
 # ============================================
 
-echo "🛑 Deteniendo Hesperides Trading System..."
+echo "🛑 Deteniendo Crypto Trading Stack..."
 
 # Matar procesos Python
 pkill -f "python apps/ingestor.py" 2>/dev/null && echo "   ✓ Ingestor detenido" || echo "   - Ingestor no estaba corriendo"

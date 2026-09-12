@@ -1,5 +1,5 @@
 # =============================================================================
-# Terraform - Hesperides Trading System IaC
+# Terraform - Crypto Trading Stack IaC
 # Despliega en AWS EC2 con Docker pre-instalado
 # =============================================================================
 #
@@ -30,12 +30,17 @@ variable "aws_region" {
 
 variable "instance_type" {
   description = "Tipo de instancia EC2"
-  default     = "t3.medium"  # 2 vCPU, 4GB RAM - suficiente para el proyecto
+  default     = "t3.medium"  # 2 vCPU, 4GB RAM: Postgres + Redis + API + frontend en un solo nodo
 }
 
 variable "key_name" {
   description = "Nombre del key pair en AWS para SSH"
-  default     = "hesperides-key"
+  default     = "crypto-trading-key"
+}
+
+variable "repo_url" {
+  description = "URL del repositorio Git que se clona y arranca en la instancia"
+  type        = string
 }
 
 # --- PROVIDER ---
@@ -61,9 +66,9 @@ data "aws_ami" "amazon_linux" {
 }
 
 # --- SECURITY GROUP ---
-resource "aws_security_group" "hesperides_sg" {
-  name        = "hesperides-trading-sg"
-  description = "Security group para Hesperides Trading System"
+resource "aws_security_group" "trading_sg" {
+  name        = "crypto-trading-sg"
+  description = "Security group para Crypto Trading Stack"
 
   # SSH
   ingress {
@@ -118,17 +123,17 @@ resource "aws_security_group" "hesperides_sg" {
   }
 
   tags = {
-    Name    = "hesperides-sg"
-    Project = "Hesperides Trading"
+    Name    = "crypto-trading-sg"
+    Project = "crypto-trading-stack"
   }
 }
 
 # --- EC2 INSTANCE ---
-resource "aws_instance" "hesperides_server" {
+resource "aws_instance" "trading_server" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = var.instance_type
   key_name               = var.key_name
-  vpc_security_group_ids = [aws_security_group.hesperides_sg.id]
+  vpc_security_group_ids = [aws_security_group.trading_sg.id]
 
   # Root volume
   root_block_device {
@@ -158,19 +163,19 @@ resource "aws_instance" "hesperides_server" {
     
     # Clonar repositorio
     cd /home/ec2-user
-    git clone https://github.com/nachoddiaz/hesperides-intro-python-Diaz-Ignacio.git app
+    git clone ${var.repo_url} app
     chown -R ec2-user:ec2-user app
     
     # Iniciar servicios
     cd app
     docker compose up -d
     
-    echo "Hesperides Trading System deployed successfully!"
+    echo "Crypto Trading Stack deployed successfully!"
   EOF
 
   tags = {
-    Name        = "hesperides-trading-server"
-    Project     = "Hesperides Trading"
+    Name        = "crypto-trading-server"
+    Project     = "crypto-trading-stack"
     Environment = "production"
   }
 }
@@ -178,30 +183,30 @@ resource "aws_instance" "hesperides_server" {
 # --- OUTPUTS ---
 output "instance_id" {
   description = "ID de la instancia EC2"
-  value       = aws_instance.hesperides_server.id
+  value       = aws_instance.trading_server.id
 }
 
 output "public_ip" {
   description = "IP pública del servidor"
-  value       = aws_instance.hesperides_server.public_ip
+  value       = aws_instance.trading_server.public_ip
 }
 
 output "public_dns" {
   description = "DNS público del servidor"
-  value       = aws_instance.hesperides_server.public_dns
+  value       = aws_instance.trading_server.public_dns
 }
 
 output "frontend_url" {
   description = "URL del frontend"
-  value       = "http://${aws_instance.hesperides_server.public_ip}:3000"
+  value       = "http://${aws_instance.trading_server.public_ip}:3000"
 }
 
 output "api_url" {
   description = "URL de la API"
-  value       = "http://${aws_instance.hesperides_server.public_ip}:8000/docs"
+  value       = "http://${aws_instance.trading_server.public_ip}:8000/docs"
 }
 
 output "ssh_command" {
   description = "Comando para conectar por SSH"
-  value       = "ssh -i ~/.ssh/${var.key_name}.pem ec2-user@${aws_instance.hesperides_server.public_ip}"
+  value       = "ssh -i ~/.ssh/${var.key_name}.pem ec2-user@${aws_instance.trading_server.public_ip}"
 }

@@ -65,7 +65,7 @@ async def main():
     bus = RedisBus(stream_key="binance_ticks")
     exchange_name = "binance"
     target_symbols  = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "ADAUSDT", "LINKUSDT", "DOTUSDT"] #"HYPEUSDT"]
-    start_date = "2026-02-04 23:00"
+    start_date = "2026-02-06 14:40"
 
     # 1. Inicialización de Estrategias y Estado
     rest_client = BinanceRest()

@@ -154,7 +154,7 @@ function App() {
     return (
         <div className="dashboard">
             <header className="header">
-                <h1>Hesperides Trading Dashboard</h1>
+                <h1>Crypto Trading Dashboard</h1>
                 <div className="header-controls">
                     <span className={`ws-status ${wsConnected ? 'connected' : 'disconnected'}`}>
                         {wsConnected ? '🟢 Live' : '🔴 Offline'}

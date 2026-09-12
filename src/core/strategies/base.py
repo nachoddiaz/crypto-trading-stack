@@ -1,19 +1,72 @@
+import functools
+import time
 from abc import ABC, abstractmethod, ABCMeta
+from typing import Any, Callable, Dict
+
 import numpy as np
 
 # --- DECORADOR: Monitorización de Latencia ---
-def measure_latency(func):
-    """
-    Decorador que mide el tiempo de ejecución de la estrategia en el Hot Path.
-    Si una estrategia tarda demasiado, podría bloquear el procesamiento de ticks.
-    """
-    def wrapper(*args, **kwargs):
-        # High-resolution timer para medir microsegundos        
-        result = func(*args, **kwargs)
 
-            
-        return result
+# Registro global de latencias, indexado por __qualname__ de la función decorada.
+# Se acumulan enteros (nanosegundos) para evitar pérdida de precisión en float.
+_LATENCY_REGISTRY: Dict[str, Dict[str, int]] = {}
+
+
+def measure_latency(func: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Mide el tiempo de ejecución de una función crítica sin alterar su firma.
+
+    El hot path solo paga dos llamadas a ``time.perf_counter_ns()`` y una
+    actualización de diccionario (~100 ns), despreciable frente al ciclo de
+    estrategia. ``functools.wraps`` preserva ``__name__``, ``__doc__``,
+    ``__module__``, ``__qualname__`` y ``__wrapped__``, de modo que la
+    introspección y las herramientas de documentación siguen funcionando.
+
+    Las estadísticas acumuladas se leen con :func:`get_latency_stats`.
+    """
+    key = func.__qualname__
+    stats = _LATENCY_REGISTRY.setdefault(key, {"count": 0, "total_ns": 0, "max_ns": 0})
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        start = time.perf_counter_ns()
+        try:
+            return func(*args, **kwargs)
+        finally:
+            elapsed = time.perf_counter_ns() - start
+            stats["count"] += 1
+            stats["total_ns"] += elapsed
+            if elapsed > stats["max_ns"]:
+                stats["max_ns"] = elapsed
+
     return wrapper
+
+
+def get_latency_stats() -> Dict[str, Dict[str, float]]:
+    """
+    Devuelve una copia de las latencias acumuladas por función decorada.
+
+    Cada entrada incluye ``count``, ``total_ms``, ``mean_us`` y ``max_us``.
+    """
+    report: Dict[str, Dict[str, float]] = {}
+    for key, s in _LATENCY_REGISTRY.items():
+        count = s["count"]
+        report[key] = {
+            "count": count,
+            "total_ms": s["total_ns"] / 1e6,
+            "mean_us": (s["total_ns"] / count / 1e3) if count else 0.0,
+            "max_us": s["max_ns"] / 1e3,
+        }
+    return report
+
+
+def reset_latency_stats() -> None:
+    """Pone a cero los contadores. Útil entre ventanas de medición o en tests."""
+    for s in _LATENCY_REGISTRY.values():
+        s["count"] = 0
+        s["total_ns"] = 0
+        s["max_ns"] = 0
+
 
 # --- METACLASE: Validación de Arquitectura ---
 class StrategyMeta(ABCMeta):

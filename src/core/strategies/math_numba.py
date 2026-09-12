@@ -204,7 +204,7 @@ def backtest_engulfing(opens, highs, lows, closes, trend_ema):
     return pnl
 
 # 3.1 Calcula patrón Engulfing SOLO en la última vela cerrada.
-nb.jit(nopython=True, cache=True)
+@njit(cache=True)
 def calc_engulfing_signal(opens: np.ndarray, highs: np.ndarray, lows: np.ndarray, closes: np.ndarray) -> int:
     """
     HOT PATH: Calcula patrón Engulfing SOLO en la última vela cerrada.

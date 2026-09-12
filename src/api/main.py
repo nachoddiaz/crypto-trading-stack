@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes import router
 from src.infrastructure.redis_bus import RedisBus
 
-app = FastAPI(title="Hesperides Crypto Trading API", version="1.0.0")
+app = FastAPI(title="Crypto Trading API", version="1.0.0")
 
 # --- 1. Configuración CORS (CRÍTICO PARA REACT) ---
 app.add_middleware(
