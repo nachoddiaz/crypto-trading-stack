@@ -183,7 +183,7 @@ Each is a Numba `@njit` kernel operating on preallocated NumPy arrays.
 | Engulfing | two-bar bullish/bearish engulfing body pattern | — |
 
 Parameters are fitted per symbol by vectorised grid search over historical bars
-([`Testeo_Strats/optimizer.py`](Testeo_Strats/optimizer.py), backtest kernels in
+([`research/optimizer.py`](research/optimizer.py), backtest kernels in
 [`math_numba.py`](src/core/strategies/math_numba.py)) and written to
 [`src/config/strategy_params.json`](src/config/strategy_params.json), which the portfolio manager
 loads at startup. Every symbol therefore runs its own calibration — BTC trades a 9/20 crossover,
@@ -244,7 +244,7 @@ never polls for live prices.
 ## Technology choices
 
 **Postgres over the alternatives.** Five storage backends were benchmarked on identical
-synthetic tick streams ([`Justificaciones_Uso/Almacenamiento/`](Justificaciones_Uso/Almacenamiento/)).
+synthetic tick streams ([`benchmarks/storage/`](benchmarks/storage/)).
 CSV, SQLite and Parquet were fastest — they write straight to local disk — but that is exactly
 what disqualifies them: bounded by one machine's disk, no replication, no concurrent readers.
 MongoDB was acceptable on throughput but does not enforce synchronous durability by default.
@@ -297,7 +297,7 @@ PYTHONPATH=. python apps/ingestor.py
 Refit strategy parameters:
 
 ```bash
-PYTHONPATH=. python Testeo_Strats/optimizer.py     # rewrites src/config/strategy_params.json
+PYTHONPATH=. python research/optimizer.py     # rewrites src/config/strategy_params.json
 ```
 
 ### API
@@ -326,9 +326,9 @@ PYTHONPATH=. python Testeo_Strats/optimizer.py     # rewrites src/config/strateg
 | `src/api/` | FastAPI app, routes, response schemas |
 | `apps/` | `ingestor.py`, `persister.py` entry points |
 | `frontend/` | React + Vite dashboard |
-| `Testeo_Strats/` | Parameter grid search |
-| `Justificaciones_Uso/` | Storage backend benchmarks |
-| `Latency_Tests/` | Latency/throughput harness and profiling suite |
+| `research/` | Strategy parameter grid search |
+| `benchmarks/` | Storage backend benchmarks |
+| `profiling/` | Latency/throughput harness and profiling suite |
 | `tests/` | Simulation harnesses |
 | `terraform/`, `docker/` | Single-node AWS deployment, container builds |
 
@@ -349,7 +349,7 @@ A full three-model decision cycle costs ~1.3 µs, against a bar period of 1 s �
 is nowhere near the bottleneck, which is the point of pushing the kernels through Numba. The
 dominant costs are I/O: the database write and the WebSocket hop.
 
-[`Latency_Tests/`](Latency_Tests/) contains a thread-safe `PerformanceMonitor` (p50/p95/p99,
+[`profiling/`](profiling/) contains a thread-safe `PerformanceMonitor` (p50/p95/p99,
 throughput, CPU and RSS via `psutil`) and a `cProfile` wrapper, plus documented `py-spy` and
 `scalene` invocations; `flamegraph.svg` is a captured py-spy profile. These currently profile a
 synthetic workload rather than instrumenting the live pipeline — see *Limitations*.

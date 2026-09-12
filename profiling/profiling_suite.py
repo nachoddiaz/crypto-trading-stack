@@ -2,7 +2,7 @@
 Profiling Suite - cProfile, py-spy integration examples
 
 Ejecutar:
-    python Latency_Tests/profiling_suite.py
+    python profiling/profiling_suite.py
 
 Para py-spy (proceso en vivo):
     py-spy record -o flamegraph.svg -- python apps/ingestor.py

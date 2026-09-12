@@ -10,6 +10,6 @@ frontend/node_modules
 # Virtual environments
 .venv/
 
-#Almacenamiento
+#Storage data volumes
 mongo_data/
 timescale_data/

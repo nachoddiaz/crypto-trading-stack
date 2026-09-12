@@ -8,7 +8,7 @@ Métricas implementadas:
 - Memoria: uso en MB
 
 Uso:
-    from Latency_Tests.latencia import PerformanceMonitor
+    from profiling.latency import PerformanceMonitor
     
     monitor = PerformanceMonitor()
     

@@ -9,11 +9,11 @@ from models import Registro
 
 # --- TUS IMPORTS DE ALMACENAMIENTO ---
 # Asegúrate de que las rutas sean correctas según tu estructura de carpetas
-from Justificaciones_Uso.Almacenamiento.CSVSto import StorageCSV
-from Justificaciones_Uso.Almacenamiento.SQLite import StorageSQLite
-from Justificaciones_Uso.Almacenamiento.Parquet import StorageParquet
-from Justificaciones_Uso.Almacenamiento.PostgreSQL import StoragePostgres
-from Justificaciones_Uso.Almacenamiento.MongoDB import StorageMongo
+from benchmarks.storage.csv_store import StorageCSV
+from benchmarks.storage.sqlite import StorageSQLite
+from benchmarks.storage.parquet import StorageParquet
+from benchmarks.storage.postgresql import StoragePostgres
+from benchmarks.storage.mongodb import StorageMongo
 
 # --- CONFIGURACIÓN ---
 BUFFER_SIZE = 100  # Acumular 100 ticks antes de escribir (Crucial para rendimiento real)
